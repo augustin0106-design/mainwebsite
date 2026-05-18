@@ -53,6 +53,23 @@ function flushEngagement() {
   state.activeStartedAt = Date.now();
 }
 
+async function loadSiteData() {
+  const embeddedData = document.getElementById("gogoland-data")?.textContent?.trim();
+  if (embeddedData && embeddedData !== "{}") {
+    return JSON.parse(embeddedData);
+  }
+
+  if (window.GOGOLAND_DATA) {
+    return window.GOGOLAND_DATA;
+  }
+
+  const response = await fetch(DATA_URL, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 function renderStats() {
   const stats = document.getElementById("quick-stats");
   stats.innerHTML = [
@@ -158,8 +175,7 @@ function openSimulation(id) {
 }
 
 async function init() {
-  const response = await fetch(DATA_URL, { cache: "no-store" });
-  const data = await response.json();
+  const data = await loadSiteData();
   state.categories = data.categories;
   state.simulations = data.simulations;
 

@@ -26,6 +26,14 @@ function slugify(text) {
     .replace(/^-+|-+$/g, "") || `simulation-${Date.now()}`;
 }
 
+function toDataScript(data) {
+  return `window.GOGOLAND_DATA = ${JSON.stringify(data, null, 2)};\n`;
+}
+
+function toEmbeddedData(data) {
+  return JSON.stringify(data, null, 2).replace(/</g, "\\u003c");
+}
+
 function showDashboard() {
   loginCard.hidden = true;
   dashboard.hidden = false;
@@ -60,10 +68,25 @@ async function readSiteData() {
 
 async function writeSiteData() {
   const dataDir = await rootHandle.getDirectoryHandle("data");
-  const fileHandle = await dataDir.getFileHandle("simulations.json");
-  const writable = await fileHandle.createWritable();
-  await writable.write(`${JSON.stringify(siteData, null, 2)}\n`);
-  await writable.close();
+  const jsonHandle = await dataDir.getFileHandle("simulations.json");
+  const jsonWritable = await jsonHandle.createWritable();
+  await jsonWritable.write(`${JSON.stringify(siteData, null, 2)}\n`);
+  await jsonWritable.close();
+
+  const jsHandle = await dataDir.getFileHandle("simulations.js", { create: true });
+  const jsWritable = await jsHandle.createWritable();
+  await jsWritable.write(toDataScript(siteData));
+  await jsWritable.close();
+
+  const indexHandle = await rootHandle.getFileHandle("index.html");
+  const indexFile = await indexHandle.getFile();
+  const nextIndex = (await indexFile.text()).replace(
+    /<script id="gogoland-data" type="application\/json">[\s\S]*?<\/script>/,
+    `<script id="gogoland-data" type="application/json">${toEmbeddedData(siteData)}</script>`
+  );
+  const indexWritable = await indexHandle.createWritable();
+  await indexWritable.write(nextIndex);
+  await indexWritable.close();
 }
 
 async function writeSimulationFile(file, filename) {
