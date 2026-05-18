@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聖誕大亂鬥 - Christmas Party Battle</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 3D Flip Effects */
+        .perspective-1000 { perspective: 1000px; }
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* Custom Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        /* Card Hover Effect */
+        .card-container:hover { transform: scale(1.05); }
+        .card-played { filter: grayscale(100%); opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans selection:bg-red-500 selection:text-white min-h-screen overflow-x-hidden">
+
+    <!-- Background Effects -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black"></div>
+        <div class="absolute top-10 left-10 w-72 h-72 bg-red-600/20 rounded-full blur-[100px]"></div>
+        <div class="absolute bottom-10 right-10 w-96 h-96 bg-green-600/10 rounded-full blur-[100px]"></div>
+        <!-- Snow Effect Overlay -->
+        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/snow.png')] opacity-20 animate-pulse"></div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app" class="relative z-10 w-full min-h-screen">
+        
+        <!-- BOARD VIEW -->
+        <div id="board-view" class="max-w-7xl mx-auto px-4 py-8 transition-opacity duration-500">
+            <header class="text-center mb-12">
+                <div class="inline-flex items-center justify-center gap-3 mb-4">
+                    <i class="fa-solid fa-dice text-red-500 text-4xl animate-bounce"></i>
+                    <h1 class="text-4xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 drop-shadow-sm">
+                        聖誕大亂鬥
+                    </h1>
+                    <i class="fa-solid fa-dice text-green-500 text-4xl animate-bounce" style="animation-delay: 0.1s;"></i>
+                </div>
+                <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                    30 個隱藏遊戲，點擊禮物盒翻牌，決定你們的命運 PK！
+                </p>
+                <div class="mt-6 flex items-center justify-center gap-4 text-sm font-bold text-slate-500">
+                    <span id="played-count">已玩遊戲：0 / 0</span>
+                    <button onclick="resetAll()" class="text-red-400 hover:text-red-300 underline underline-offset-4 flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-right"></i> 重置所有
+                    </button>
+                </div>
+            </header>
+
+            <!-- Cards Grid -->
+            <div id="cards-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                <!-- Cards will be injected here by JS -->
+            </div>
+            
+            <footer class="mt-16 text-center text-slate-600 text-sm">
+                <p>© 2024 Christmas Class Party Game Set. Designed for Fun!</p>
+            </footer>
+        </div>
+
+        <!-- BATTLE VIEW -->
+        <div id="battle-view" class="hidden fixed inset-0 z-50 flex flex-col transition-colors duration-500 overflow-hidden bg-slate-900">
+            <!-- Background Snow in Battle -->
+            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/snow.png')] opacity-20 animate-pulse pointer-events-none"></div>
+
+            <!-- Header -->
+            <div class="relative z-10 p-4 flex justify-between items-center bg-black/10 backdrop-blur-sm">
+                <button onclick="backToBoard()" class="flex items-center gap-2 bg-white text-gray-800 px-4 py-2 rounded-full font-bold hover:bg-gray-100 transition-transform hover:scale-105 shadow-lg">
+                    <i class="fa-solid fa-arrow-left"></i> 返回選題牆
+                </button>
+                <div id="battle-header-title" class="text-white font-bold text-xl drop-shadow-md hidden md:block">
+                    <!-- Category :: Title -->
+                </div>
+                <div class="w-24"></div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative z-10 w-full overflow-y-auto">
+                
+                <!-- Icon -->
+                <div class="mb-6 bg-white/20 p-4 rounded-full backdrop-blur-md shadow-xl animate-bounce">
+                    <i id="battle-icon" class="fa-solid fa-gamepad text-4xl text-white"></i>
+                </div>
+
+                <!-- Question Container -->
+                <div id="question-container" class="w-full max-w-4xl relative mb-8 min-h-[300px] flex items-center justify-center">
+                    <!-- Dynamic Content Goes Here -->
+                </div>
+
+                <!-- Answer Display -->
+                <div id="answer-display" class="hidden w-full max-w-4xl bg-yellow-400 text-yellow-900 p-4 rounded-xl text-center font-bold text-2xl shadow-xl transform animate-bounce z-20 border-4 border-yellow-200 mb-8">
+                    <!-- Answer Text -->
+                </div>
+
+                <!-- Controls -->
+                <div class="w-full max-w-4xl flex flex-col md:flex-row gap-6 items-center justify-center pb-8">
+                    
+                    <!-- Timer -->
+                    <div class="flex flex-col items-center bg-black/30 p-3 rounded-2xl backdrop-blur-sm border border-white/20 w-40 shadow-lg">
+                        <div id="timer-display" class="text-3xl font-mono text-white font-bold">00:00</div>
+                        <div class="flex gap-2 mt-1">
+                            <button id="timer-toggle-btn" onclick="toggleTimer()" class="px-3 py-1 rounded text-sm font-bold shadow bg-green-500 text-white">開始</button>
+                            <button onclick="resetTimer()" class="px-3 py-1 rounded text-sm font-bold bg-gray-500 text-white shadow">重置</button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <button onclick="toggleAnswer()" class="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-white px-6 py-4 rounded-2xl font-bold transition-all border-b-4 border-yellow-700 active:border-b-0 active:translate-y-1 shadow-lg">
+                            <i class="fa-solid fa-eye"></i> <span id="answer-btn-text">看答案</span>
+                        </button>
+                        <button onclick="pickRandomQuestion()" class="flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-6 py-4 rounded-2xl font-bold transition-all border-b-4 border-blue-200 active:border-b-0 active:translate-y-1 shadow-lg">
+                            <i class="fa-solid fa-rotate"></i> 換一題
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Footer decoration -->
+            <div id="battle-footer" class="h-8 bg-black/20 w-full flex items-center justify-center text-white/50 text-xs backdrop-blur-sm">
+                <!-- Description -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATA ---
+        // 修正後的圖示對照 (將 React Icon 轉為 FontAwesome Class)
+        const ICONS_MAP = {
+            'Grid': 'fa-table',
+            'RefreshCw': 'fa-rotate',
+            'Activity': 'fa-heart-pulse',
+            'Zap': 'fa-bolt',
+            'Eye': 'fa-eye',
+            'Timer': 'fa-stopwatch',
+            'AlertTriangle': 'fa-triangle-exclamation',
+            'Calculator': 'fa-calculator',
+            'Clock': 'fa-clock',
+            'PenTool': 'fa-pen-nib',
+            'List': 'fa-list-ol',
+            'Beaker': 'fa-flask',
+            'Cpu': 'fa-microchip',
+            'Smile': 'fa-face-smile',
+            'Trophy': 'fa-trophy',
+            'Ghost': 'fa-ghost'
+        };
+
+        const CATEGORY_COLORS = {
+            Funny: 'bg-yellow-400 text-yellow-900 border-yellow-600',
+            Adrenaline: 'bg-red-500 text-white border-red-700',
+            Interactive: 'bg-blue-400 text-white border-blue-600',
+            Tech: 'bg-purple-500 text-white border-purple-700',
+            Luck: 'bg-green-500 text-white border-green-700'
+        };
+
+        const CATEGORY_NAMES = {
+            Funny: '全班笑翻',
+            Adrenaline: '腎上腺素',
+            Interactive: '全班互動',
+            Tech: '科技新奇',
+            Luck: '運氣直覺'
+        };
+
+        // 完整題目資料 (已將您提供的片段補全為完整的 JS Array)
+        const RAW_GAMES_DATA = [
+            // --- 第二類：腎上腺素飆升 (比反應) ---
+            {
+                id: 'adr_new_1',
+                category: 'Adrenaline',
+                title: '元素週期表競速',
+                desc: '聽到元素，馬上指出在哪裡！',
+                icon: 'Grid',
+                type: 'image-find',
+                contentPool: [
+                    { q: '請指出「鉀 (K)」', imgText: '[週期表]', a: '第 4 週期，第 1 族 (左邊)' },
+                    { q: '請指出「金 (Au)」', imgText: '[週期表]', a: '第 6 週期，第 11 族 (中間偏右下)' },
+                    { q: '請指出「氧 (O)」', imgText: '[週期表]', a: '第 2 週期，第 16 族 (右上方)' },
+                    { q: '請指出「鐵 (Fe)」', imgText: '[週期表]', a: '第 4 週期，第 8 族 (中間)' },
+                    { q: '請指出「氦 (He)」', imgText: '[週期表]', a: '最右上角 (第 1 週期，第 18 族)' },
+                    { q: '請指出「鈉 (Na)」', imgText: '[週期表]', a: '第 3 週期，第 1 族 (左邊)' },
+                    { q: '請指出「鈣 (Ca)」', imgText: '[週期表]', a: '第 4 週期，第 2 族 (左邊)' },
+                    { q: '請指出「碳 (C)」', imgText: '[週期表]', a: '第 2 週期，第 14 族 (右上方)' },
+                    { q: '請指出「銀 (Ag)」', imgText: '[週期表]', a: '第 5 週期，第 11 族 (中間)' },
+                    { q: '請指出「鈾 (U)」', imgText: '[週期表]', a: '最下方的錒系元素 (92號)' }
+                ]
+            },
+            {
+                id: 'adr_new_2',
+                category: 'Adrenaline',
+                title: '中英翻譯 (進階版)',
+                desc: '看到單字，馬上說出對應中文！',
+                icon: 'RefreshCw',
+                type: 'text',
+                contentPool: [
+                    { q: 'Vulnerable', a: '脆弱的 / 易受傷的' },
+                    { q: 'Procrastinate', a: '拖延' },
+                    { q: 'Ambiguous', a: '模稜兩可的 / 曖昧的' },
+                    { q: 'Hypocritical', a: '偽善的' },
+                    { q: 'Simultaneously', a: '同時地' },
+                    { q: 'Deteriorate', a: '惡化' },
+                    { q: 'Enthusiastic', a: '熱情的' },
+                    { q: 'Inevitable', a: '不可避免的' },
+                    { q: 'Consequence', a: '後果' },
+                    { q: 'Metaphor', a: '隱喻 / 暗喻' }
+                ]
+            },
+            {
+                id: 'adr_new_3',
+                category: 'Adrenaline',
+                title: '生物器官指認',
+                desc: '看到人體模型，快速指出器官！',
+                icon: 'Activity',
+                type: 'image-find-organ',
+                contentPool: [
+                    { q: '請指出「膽囊」', imgText: '[人體模型]', a: '肝臟下方，綠色小囊' },
+                    { q: '請指出「胰臟」', imgText: '[人體模型]', a: '胃的後方，黃色長條' },
+                    { q: '請指出「闌尾」', imgText: '[人體模型]', a: '大腸起始端，右下腹' },
+                    { q: '請指出「甲狀腺」', imgText: '[人體模型]', a: '脖子前方，蝴蝶狀' },
+                    { q: '請指出「橫膈膜」', imgText: '[人體模型]', a: '胸腔與腹腔之間' },
+                    { q: '請指出「腎臟」', imgText: '[人體模型]', a: '後腰部兩側' },
+                    { q: '請指出「脾臟」', imgText: '[人體模型]', a: '胃的左上方' },
+                    { q: '請指出「十二指腸」', imgText: '[人體模型]', a: '連接胃和小腸的C型段' },
+                    { q: '請指出「膀胱」', imgText: '[人體模型]', a: '骨盆腔內，儲存尿液' },
+                    { q: '請指出「氣管」', imgText: '[人體模型]', a: '連接喉嚨到肺' }
+                ]
+            },
+            {
+                id: 'adr_1',
+                category: 'Adrenaline',
+                title: '相反指令',
+                desc: '我說向左，你要向右！',
+                icon: 'Zap',
+                type: 'text',
+                contentPool: [
+                    { q: '指令：請 向左看', a: '正確動作：向右看' },
+                    { q: '指令：請 舉右手', a: '正確動作：舉左手' },
+                    { q: '指令：請 坐下', a: '正確動作：站起來' },
+                    { q: '指令：請 點頭', a: '正確動作：搖頭' },
+                    { q: '指令：請 說「有」', a: '正確動作：說「沒有」' },
+                    { q: '指令：請 閉上眼睛', a: '正確動作：張大眼睛' },
+                    { q: '指令：請 往前一步', a: '正確動作：往後一步' },
+                    { q: '指令：請 蹲下', a: '正確動作：跳起來' },
+                    { q: '指令：請 摸頭', a: '正確動作：摸腳/不摸頭' },
+                    { q: '指令：請 大笑', a: '正確動作：大哭/安靜' }
+                ]
+            },
+            {
+                id: 'adr_4',
+                category: 'Adrenaline',
+                title: '動態視力',
+                desc: '剛剛閃過了什麼東西？',
+                icon: 'Eye',
+                type: 'flash',
+                contentPool: [
+                    { q: '閃現圖片：一隻穿著聖誕裝的狗', a: '聖誕狗' },
+                    { q: '閃現數字：8573', a: '8573' },
+                    { q: '閃現文字：「今天不用寫作業」', a: '今天不用寫作業' },
+                    { q: '閃現圖片：班導師的鬼臉', a: '班導師鬼臉' },
+                    { q: '閃現算式：12 + 15 = ?', a: '27' },
+                    { q: '閃現圖片：聖誕老人騎機車', a: '聖誕老人騎機車' },
+                    { q: '閃現物品：一個漢堡', a: '漢堡' },
+                    { q: '閃現文字：「這是陷阱」', a: '這是陷阱' },
+                    { q: '閃現數字：9999', a: '9999' },
+                    { q: '閃現算式：6 x 7 = ?', a: '42' }
+                ]
+            },
+            {
+                id: 'adr_5',
+                category: 'Adrenaline',
+                title: '心算神童',
+                desc: '數學比速度，題目有難度！',
+                icon: 'Timer',
+                type: 'text',
+                contentPool: [
+                    { q: '15 x 15 - 25 = ?', a: '200' },
+                    { q: '88 + 99 + 11 = ?', a: '198' },
+                    { q: '200 的 15% 是多少？', a: '30' },
+                    { q: '7 x 8 + 6 x 9 = ?', a: '110' },
+                    { q: '1000 減去 365 = ?', a: '635' },
+                    { q: '120 除以 4 再乘以 3 = ?', a: '90' },
+                    { q: '1 + 2 + 3 + ... + 10 = ?', a: '55' },
+                    { q: '25 x 4 + 75 x 4 = ?', a: '400' },
+                    { q: '(50 - 18) x 2 = ?', a: '64' },
+                    { q: '333 + 444 + 555 - 1000 = ?', a: '332' }
+                ]
+            },
+            {
+                id: 'adr_6',
+                category: 'Adrenaline',
+                title: '抓錯字大師',
+                desc: '題目超難！找出藏在裡面的錯字',
+                icon: 'Eye',
+                type: 'text',
+                contentPool: [
+                    { q: '成語：再接再勵', a: '勵 -> 厲' },
+                    { q: '成語：按步就班', a: '步 -> 部' },
+                    { q: '成語：走頭無路', a: '頭 -> 投' },
+                    { q: '成語：必需品 vs 必須做', a: '這題沒錯字 (陷阱題)' },
+                    { q: '詞語：一碗魯肉飯', a: '魯 -> 滷' },
+                    { q: '成語：莫名奇妙', a: '奇 -> 其' },
+                    { q: '成語：迫不及待', a: '及 -> 急' },
+                    { q: '成語：穿流不息', a: '穿 -> 川' },
+                    { q: '成語：興高彩烈', a: '彩 -> 采' },
+                    { q: '成語：默守成規', a: '默 -> 墨' }
+                ]
+            },
+
+            // --- 第三類：全班一起玩 (互動) ---
+            {
+                id: 'int_new_1',
+                category: 'Interactive',
+                title: '真假冷知識',
+                desc: '這個知識是真的還是假的？',
+                icon: 'AlertTriangle',
+                type: 'true-false',
+                contentPool: [
+                    { q: '豬無法看到天空？', a: ' 正確 (因為頸椎構造)' },
+                    { q: '長頸鹿沒有聲帶？', a: ' 錯誤 (有，但很少叫)' },
+                    { q: '金魚的記憶只有7秒？', a: ' 錯誤 (可以記很久)' },
+                    { q: '人類和香蕉有50%的DNA相同？', a: ' 正確' },
+                    { q: '鴕鳥會把頭埋進沙子裡躲避敵人？', a: ' 錯誤 (牠們會跑或踢)' },
+                    { q: '章魚有三顆心臟？', a: ' 正確' },
+                    { q: '閃電不會擊中同一個地方兩次？', a: ' 錯誤 (帝國大廈每年被打好幾次)' },
+                    { q: '牛有四個胃？', a: ' 正確' },
+                    { q: '可樂最初是綠色的？', a: ' 錯誤 (一直都是褐色)' },
+                    { q: '在太空中不能哭？', a: ' 正確 (眼淚流不下來)' }
+                ]
+            },
+            {
+                id: 'int_1',
+                category: 'Interactive',
+                title: '頭頂禁忌詞',
+                desc: '互相陷害！引誘對方說出禁忌字',
+                icon: 'AlertTriangle',
+                type: 'taboo',
+                contentPool: [
+                    { q: '左：你 / 右：我', a: '請對話' },
+                    { q: '左：好 / 右：對', a: '請對話' },
+                    { q: '左：點頭 / 右：大笑', a: '引誘對方做動作' },
+                    { q: '左：不知道 / 右：真的假的', a: '請對話' },
+                    { q: '左：甚至 / 右：然後', a: '請對話' },
+                    { q: '左：可是 / 右：但是', a: '請對話' },
+                    { q: '左：搖頭 / 右：拍手', a: '引誘對方做動作' },
+                    { q: '左：蛤 / 右：什麼', a: '請對話' },
+                    { q: '左：謝謝 / 右：不客氣', a: '請對話' },
+                    { q: '左：廁所 / 右：喝水', a: '請對話' }
+                ]
+            },
+            {
+                id: 'int_2',
+                category: 'Interactive',
+                title: '閃視倒唸',
+                desc: '題目閃現 1 秒，看完馬上倒著唸！',
+                icon: 'RefreshCw',
+                type: 'flash',
+                contentPool: [
+                    { q: '聖誕快樂', a: '樂快誕聖' },
+                    { q: '吃葡萄不吐葡萄皮', a: '皮萄葡吐不萄葡吃' },
+                    { q: '我是大帥哥', a: '哥帥大是我' },
+                    { q: '新年快樂', a: '樂快年新' },
+                    { q: '學校福利社', a: '社利福校學' },
+                    { q: '聖誕禮物', a: '物禮誕聖' },
+                    { q: '恭喜發財', a: '財發喜恭' },
+                    { q: '珍珠奶茶好喝', a: '喝好茶奶珠珍' },
+                    { q: '我愛寫作業', a: '業作寫愛我' },
+                    { q: '班導師最帥', a: '帥最師導班' }
+                ]
+            },
+            {
+                id: 'int_3',
+                category: 'Interactive',
+                title: '常數大背誦',
+                desc: '背出數學/理化常數，越多位越贏！',
+                icon: 'Calculator',
+                type: 'text',
+                contentPool: [
+                    { q: '圓周率 (π)', a: '3.1415926535...' },
+                    { q: '自然對數底 (e)', a: '2.7182818284...' },
+                    { q: '黃金比例 (φ)', a: '1.6180339887...' },
+                    { q: '根號 2 (√2)', a: '1.4142135623...' },
+                    { q: '根號 3 (√3)', a: '1.7320508075...' },
+                    { q: '普朗克常數 (h)', a: '6.62607015 × 10⁻³⁴' },
+                    { q: '萬有引力常數 (G)', a: '6.67430 × 10⁻¹¹' },
+                    { q: '波茲曼常數 (k)', a: '1.380649 × 10⁻²³' },
+                    { q: '阿伏伽德羅常數 (NA)', a: '6.02214076 × 10²³' },
+                    { q: '光速 (c)', a: '299,792,458 m/s' }
+                ]
+            },
+            {
+                id: 'int_4',
+                category: 'Interactive',
+                title: '推手相撲',
+                desc: '雙腳不動互推手掌，移動就輸！',
+                icon: 'Zap',
+                type: 'text',
+                contentPool: [
+                    { q: '規則：雙腳站定，雙手互推，腳移動就算輸！', a: '開始比賽' },
+                    { q: '規則：只能用「單手」攻擊與防禦！', a: '開始比賽' },
+                    { q: '規則：雙方必須「單腳站立」互推！', a: '落地者輸' },
+                    { q: '規則：不可縮手閃躲，只能正面對決！', a: '硬碰硬版' },
+                    { q: '規則：蹲馬步降低重心，互推！', a: '下盤對決' },
+                    { q: '規則：必須閉上一隻眼睛互推！', a: '開始比賽' },
+                    { q: '規則：必須一邊推一邊大笑，停下來就算輸！', a: '開始比賽' },
+                    { q: '規則：只能用手背互推！', a: '高難度' },
+                    { q: '規則：推的時候必須喊出對方的名字！', a: '開始比賽' },
+                    { q: '規則：慢動作互推，誰動作太快犯規！', a: '開始比賽' }
+                ]
+            },
+            {
+                id: 'int_5',
+                category: 'Interactive',
+                title: '人體計時器',
+                desc: '閉眼默數秒數，看誰誤差最小！',
+                icon: 'Clock',
+                type: 'text',
+                contentPool: [
+                    { q: '閉上眼睛，默數 10 秒 舉手！', a: '看碼表' },
+                    { q: '閉上眼睛，默數 30 秒 舉手！', a: '看碼表' },
+                    { q: '閉上眼睛，默數 60 秒 (1分鐘) 舉手！', a: '看碼表' },
+                    { q: '閉上眼睛，默數 15.5 秒 舉手！', a: '看碼表' },
+                    { q: '一邊深蹲一邊默數 20 秒 舉手！', a: '看碼表' },
+                    { q: '閉上眼睛，默數 45 秒 舉手！', a: '看碼表' },
+                    { q: '閉上眼睛，默數 8.8 秒 舉手！', a: '看碼表' },
+                    { q: '全班一起默數 10 秒，看誰最準！', a: '看碼表' },
+                    { q: '閉氣默數 20 秒', a: '注意安全' },
+                    { q: '單腳站立默數 15 秒 舉手！', a: '看碼表' }
+                ]
+            },
+            {
+                id: 'int_6',
+                category: 'Interactive',
+                title: '靈魂繪師',
+                desc: '台上同學畫，全班負責猜！',
+                icon: 'PenTool',
+                type: 'text',
+                contentPool: [
+                    { q: '請畫「聖誕老人跳舞」', a: '給全班猜' },
+                    { q: '請畫「哥吉拉吃漢堡」', a: '給全班猜' },
+                    { q: '請畫「正在考試的章魚」', a: '給全班猜' },
+                    { q: '請畫「外星人打籃球」', a: '給全班猜' },
+                    { q: '請畫「馬桶上的沉思者」', a: '給全班猜' },
+                    { q: '請畫「騎腳踏車的恐龍」', a: '給全班猜' },
+                    { q: '請畫「正在洗澡的貓」', a: '給全班猜' },
+                    { q: '請畫「喝珍奶的自由女神」', a: '給全班猜' },
+                    { q: '請畫「正在自拍的蒙娜麗莎」', a: '給全班猜' },
+                    { q: '請畫「偷吃起司的老鼠」', a: '給全班猜' }
+                ]
+            },
+
+            // --- 第四類：科技與新奇 (酷炫) ---
+            {
+                id: 'tech_new_1',
+                category: 'Tech',
+                title: '年代排序',
+                desc: '將歷史事件按時間先後排序！',
+                icon: 'List',
+                type: 'timeline',
+                contentPool: [
+                    { q: '請排序：1.二戰結束 2.鐵達尼號沈沒 3.人類登月 4.蘇聯解體', a: '2 -> 1 -> 3 -> 4' },
+                    { q: '請排序：1.iPhone發表 2.Facebook創立 3.Google成立 4.Windows 95', a: '4 -> 3 -> 2 -> 1' },
+                    { q: '請排序：1.秦始皇 2.漢武帝 3.唐太宗 4.成吉思汗', a: '1 -> 2 -> 3 -> 4' },
+                    { q: '請排序：1.恐龍滅絕 2.人類出現 3.寒武紀大爆發 4.冰河時期', a: '3 -> 1 -> 2 -> 4' },
+                    { q: '請排序：1.哈利波特出版 2.魔戒電影上映 3.復仇者聯盟 4.阿凡達', a: '1 -> 2 -> 4 -> 3' }
+                ]
+            },
+            {
+                id: 'tech_new_2',
+                category: 'Tech',
+                title: '物理現象命名',
+                desc: '聽敘述，搶答這是什麼物理原理！',
+                icon: 'Beaker',
+                type: 'text',
+                contentPool: [
+                    { q: '飛機能產生升力飛在空中，是因為流速快壓力小，這是什麼原理？', a: '伯努利原理' },
+                    { q: '救護車靠近時聲音變尖，遠離時聲音變低沈，這是什麼效應？', a: '都卜勒效應' },
+                    { q: '光纖網路利用光在內部不斷反射傳輸，這是光的什麼現象？', a: '全反射' },
+                    { q: '無線充電、悠遊卡感應沒有接觸卻有電，利用了什麼原理？', a: '電磁感應 (法拉第定律)' },
+                    { q: '花式滑冰選手把手收回來，旋轉速度會變快，因為什麼守恆？', a: '角動量守恆' },
+                    { q: '火箭升空是利用氣體向下噴射產生的什麼力？', a: '反作用力 (牛頓第三定律)' },
+                    { q: '盪鞦韆配合節奏推會越盪越高，震碎玻璃杯也是同理，這是什麼？', a: '共振' },
+                    { q: '愛因斯坦因為解釋什麼現象獲得諾貝爾獎？(光照金屬跑出電子)', a: '光電效應' },
+                    { q: '熱量不會自發地從低溫流向高溫 (覆水難收)，這是哪條定律？', a: '熱力學第二定律 (熵增)' },
+                    { q: '潛水艇透過充水排水來控制浮沉，是應用什麼原理？', a: '阿基米德原理 (浮力)' }
+                ]
+            },
+            {
+                id: 'tech_1',
+                category: 'Tech',
+                title: 'Google 地球',
+                desc: '我在哪裡？看街景猜國家',
+                icon: 'Grid',
+                type: 'geo-guess',
+                contentPool: [
+                    { q: '地點：法國 巴黎鐵塔附近', imgText: '[街景: 巴黎鐵塔底部]', a: '法國', x: 49, y: 28 },
+                    { q: '地點：日本 東京澀谷十字路口', imgText: '[街景: 澀谷人潮]', a: '日本', x: 88, y: 36 },
+                    { q: '地點：埃及 金字塔前', imgText: '[街景: 沙漠與金字塔]', a: '埃及', x: 55, y: 40 },
+                    { q: '地點：美國 紐約時代廣場', imgText: '[街景: 時代廣場看板]', a: '美國', x: 29, y: 32 },
+                    { q: '地點：台灣 台北101門口', imgText: '[街景: 101大樓仰視]', a: '台灣', x: 86, y: 42 },
+                    { q: '地點：澳洲 雪梨歌劇院', imgText: '[街景: 白色貝殼建築]', a: '澳洲', x: 92, y: 78 },
+                    { q: '地點：中國 萬里長城', imgText: '[街景: 長城城牆]', a: '中國', x: 82, y: 32 },
+                    { q: '地點：義大利 羅馬競技場', imgText: '[街景: 圓形競技場]', a: '義大利', x: 52, y: 30 },
+                    { q: '地點：日本 富士山', imgText: '[街景: 山下湖畔]', a: '日本', x: 88, y: 36 },
+                    { q: '地點：我們學校的操場', imgText: '[街景: 學校操場]', a: '學校', x: 86, y: 42 }
+                ]
+            },
+            {
+                id: 'tech_2',
+                category: 'Tech',
+                title: 'Deepfake 辨識',
+                desc: '哪張臉是真人？哪張是 AI？',
+                icon: 'Cpu',
+                type: 'image-diff',
+                contentPool: [
+                    { q: '真假湯姆克魯斯', imgText: '[左: 真阿湯哥] [右: AI生成]', a: '左邊是真的，右邊是假的' },
+                    { q: '真假伊隆馬斯克', imgText: '[左: AI馬斯克] [右: 真馬斯克]', a: '右邊是真的，左邊是假的' },
+                    { q: '這隻貓是真的還是生成的？', imgText: '[圖片: 完美的貓]', a: '生成的 (毛髮太完美)' },
+                    { q: '這個風景照是照片還是畫？', imgText: '[圖片: 超寫實風景]', a: '是照片' },
+                    { q: '這個新聞主播是真的嗎？', imgText: '[圖片: AI虛擬主播]', a: '是 AI 虛擬主播' },
+                    { q: '真假川普', imgText: '[圖片: 川普被捕(假)]', a: '這張是 AI 生成的假新聞圖' },
+                    { q: '蒙娜麗莎動起來', imgText: '[影片: 會眨眼的蒙娜麗莎]', a: 'AI 生成影片' },
+                    { q: '這隻恐龍是真的嗎？', imgText: '[圖片: 恐龍自拍]', a: '當然是假的' },
+                    { q: '這位嬰兒是真人嗎？', imgText: '[圖片: 手指有6根的嬰兒]', a: 'AI 生成的 (手指bug)' },
+                    { q: '明星的童年照', imgText: '[圖片: 模糊修復]', a: '是 AI 修復的' }
+                ]
+            },
+            {
+                id: 'tech_5',
+                category: 'Tech',
+                title: '表情包翻譯',
+                desc: '用 Emoji 猜成語或電影',
+                icon: 'Smile',
+                type: 'text',
+                contentPool: [
+                    { q: '👽🚲🌕 (猜電影)', a: 'E.T. 外星人' },
+                    { q: '🚢❄️💔 (猜電影)', a: '鐵達尼號' },
+                    { q: '🐴🐴🐯🐯 (猜成語)', a: '馬馬虎虎' },
+                    { q: '🥚🦴头 (猜成語)', a: '雞蛋裡挑骨頭' },
+                    { q: '🐠🔍🌊 (猜電影)', a: '海底總動員' },
+                    { q: '🍎👸😴 (猜童話)', a: '白雪公主' },
+                    { q: '🕷️🕸️🦸 (猜電影)', a: '蜘蛛人' },
+                    { q: '🌧️➡️☀️ (猜成語)', a: '雨過天晴' },
+                    { q: '🐮👻🐍神 (猜成語)', a: '牛鬼蛇神' },
+                    { q: '🍐🌸🌂🌧️ (猜成語)', a: '梨花帶雨' }
+                ]
+            },
+
+            // --- 第五類：運氣與直覺 (門檻低) ---
+            {
+                id: 'luck_1',
+                category: 'Luck',
+                title: '蝦皮猜價王',
+                desc: '猜猜這個怪東西賣多少錢？',
+                icon: 'Trophy',
+                type: 'image',
+                contentPool: [
+                    { q: '整人放屁坐墊', imgText: '[商品圖: 塑膠墊]', a: '$99' },
+                    { q: '仿真蟑螂抱枕 100cm', imgText: '[商品圖: 巨大蟑螂]', a: '$299' },
+                    { q: '可以穿的龜殼玩偶', imgText: '[商品圖: 人穿龜殼]', a: '$599' },
+                    { q: '一根普通的稻草', imgText: '[商品圖: 稻草]', a: '$1 (真的有人賣)' },
+                    { q: '超大 Enter 按鍵枕頭', imgText: '[商品圖: 巨型按鍵]', a: '$150' },
+                    { q: '超逼真魚拖鞋', imgText: '[商品圖: 魚型拖鞋]', a: '$120' },
+                    { q: '巨型 AirPods 藍芽喇叭', imgText: '[商品圖: 巨大耳機]', a: '$350' },
+                    { q: '肌肉猛男抱枕', imgText: '[商品圖: 肌肉男]', a: '$450' },
+                    { q: '慘叫雞', imgText: '[商品圖: 黃色塑膠雞]', a: '$49' },
+                    { q: '印有鈔票圖案的衛生紙', imgText: '[商品圖: 鈔票捲筒]', a: '$80' }
+                ]
+            },
+            {
+                id: 'luck_2',
+                category: 'Luck',
+                title: 'YT 訂閱數比大小',
+                desc: '誰的訂閱數比較多？',
+                icon: 'RefreshCw',
+                type: 'image-diff',
+                contentPool: [
+                    { q: '老高 vs Joeman', imgText: '[老高] vs [Joeman]', a: '老高' },
+                    { q: '蔡阿嘎 vs 酷的夢', imgText: '[蔡阿嘎] vs [酷的夢]', a: '蔡阿嘎' },
+                    { q: 'HOOK vs 滴妹', imgText: '[HOOK] vs [滴妹]', a: 'HOOK (近期互有消長)' },
+                    { q: '木曜4超玩 vs 這群人', imgText: '[木曜] vs [這群人]', a: '這群人 (總數)' },
+                    { q: '谷阿莫 vs 啾啾鞋', imgText: '[谷阿莫] vs [啾啾鞋]', a: '谷阿莫' },
+                    { q: 'PewDiePie vs MrBeast', imgText: '[PewDiePie] vs [MrBeast]', a: 'MrBeast' },
+                    { q: '狠愛演(已停更) vs 反骨男孩', imgText: '[狠愛演] vs [反骨]', a: '反骨男孩' },
+                    { q: '千千進食中 vs 陪沈團', imgText: '[千千] vs [沈]', a: '千千' },
+                    { q: '許伯簡芝 vs 黃氏兄弟', imgText: '[許伯] vs [黃氏兄弟]', a: '黃氏兄弟' },
+                    { q: 'Toyz vs 統神', imgText: '[Toyz] vs [統神]', a: 'Toyz (封鎖前)' }
+                ]
+            },
+            {
+                id: 'luck_3',
+                category: 'Luck',
+                title: '世界之最',
+                desc: '哪個比較長/高/大？',
+                icon: 'Ghost',
+                type: 'quiz-options',
+                contentPool: [
+                    { q: '世界最高的樓？', options: ['A. 台北101', 'B. 哈里發塔', 'C. 上海中心', 'D. 東京晴空塔'], a: 'B. 哈里發塔' },
+                    { q: '世界最長的河？', options: ['A. 長江', 'B. 密西西比河', 'C. 尼羅河', 'D. 亞馬遜河'], a: 'C. 尼羅河' },
+                    { q: '哪個星球比較大？', options: ['A. 地球', 'B. 火星', 'C. 土星', 'D. 木星'], a: 'D. 木星' },
+                    { q: '哪個比較早發明？', options: ['A. 火柴', 'B. 打火機', 'C. 同時', 'D. 不知道'], a: 'B. 打火機 (沒錯，打火機比火柴早)' },
+                    { q: '人體最多的骨頭在哪？', options: ['A. 頭', 'B. 脊椎', 'C. 手', 'D. 腳'], a: 'C. 手' },
+                    { q: '速度誰比較快？', options: ['A. 獵豹', 'B. 遊隼', 'C. 旗魚', 'D. 鴕鳥'], a: 'B. 遊隼 (俯衝速度)' },
+                    { q: '誰比較重？', options: ['A. 非洲象', 'B. 藍鯨', 'C. 暴龍', 'D. 公車'], a: 'B. 藍鯨' },
+                    { q: '地球哪裡最深？', options: ['A. 馬里亞納海溝', 'B. 東加海溝', 'C. 菲律賓海溝', 'D. 你的心'], a: 'A. 馬里亞納海溝' },
+                    { q: '速度誰比較快？', options: ['A. 光速', 'B. 音速', 'C. 太空梭', 'D. 閃電俠'], a: 'A. 光速' },
+                    { q: '誰比較硬？', options: ['A. 鐵', 'B. 鑽石', 'C. 石墨', 'D. 鈦合金'], a: 'B. 鑽石' }
+                ]
+            },
+            {
+                id: 'luck_5',
+                category: 'Luck',
+                title: '年份猜猜看',
+                desc: '這張舊照片是哪一年？',
+                icon: 'Timer',
+                type: 'image',
+                contentPool: [
+                    { q: '第一代 iPhone 發表', imgText: '[照片: 賈伯斯拿iPhone]', a: '2007年' },
+                    { q: '鐵達尼號上映', imgText: '[海報: 傑克與蘿絲]', a: '1997年' },
+                    { q: 'SARS 疫情爆發', imgText: '[照片: 戴口罩的人群]', a: '2003年' },
+                    { q: 'Michael Jackson 去世', imgText: '[照片: MJ演唱會]', a: '2009年' },
+                    { q: 'Facebook 創立', imgText: '[Logo: 早期FB介面]', a: '2004年' },
+                    { q: '911 恐怖攻擊事件', imgText: '[照片: 雙子星大樓]', a: '2001年' },
+                    { q: '東京奧運 (舉辦年)', imgText: '[照片: 東奧Logo]', a: '2021年' },
+                    { q: '學校創校', imgText: '[照片: 學校老照片]', a: '請查校史' },
+                    { q: '班導師出生', imgText: '[照片: 嬰兒照]', a: '秘密 (猜對有獎?)' },
+                    { q: 'COVID-19 疫情爆發', imgText: '[照片: 新冠病毒]', a: '2019年底' }
+                ]
+            },
+            {
+                id: 'luck_6',
+                category: 'Luck',
+                title: '搜尋趨勢 PK',
+                desc: '誰被搜尋的次數比較多？',
+                icon: 'RefreshCw',
+                type: 'text',
+                contentPool: [
+                    { q: '麥當勞 vs 肯德基', a: '麥當勞' },
+                    { q: 'PS5 vs Switch', a: 'Switch (長期)' },
+                    { q: '聖誕節 vs 新年', a: '聖誕節' },
+                    { q: '減肥 vs 增肥', a: '減肥' },
+                    { q: '英文 vs 數學', a: '英文' },
+                    { q: '貓 vs 狗', a: '狗 (通常略高)' },
+                    { q: '珍珠奶茶 vs 咖啡', a: '咖啡' },
+                    { q: '暑假 vs 寒假', a: '暑假' },
+                    { q: 'Instagram vs TikTok', a: 'Instagram' },
+                    { q: 'YouTube vs Netflix', a: 'YouTube' }
+                ]
+            }
+        ];
+
+        // --- STATE & UTILS ---
+        let games = [];
+        let revealedIndices = [];
+        let playedIndices = [];
+        let activeGameIndex = null;
+        let currentQuestion = null;
+        let showAnswerState = false;
+        let timer = 0;
+        let timerInterval = null;
+        let isTimerRunning = false;
+        let tabooReady = false;
+
+        // 生成佔位圖片的函數 (模擬 getPlaceholderImage)
+        function getImageUrl(text) {
+            // 使用 Placehold.co 產生包含文字的圖片
+            const cleanText = text.replace(/\[|\]/g, '').replace('照片: ', '').replace('商品圖: ', '').replace('街景: ', '').trim();
+            const bgColor = '000000';
+            const textColor = 'FFFFFF';
+            return `https://placehold.co/600x400/${bgColor}/${textColor}/png?text=${encodeURIComponent(cleanText)}`;
+        }
+
+        // --- INIT ---
+        function init() {
+            // 隨機打亂遊戲順序
+            games = [...RAW_GAMES_DATA].sort(() => Math.random() - 0.5);
+            renderBoard();
+        }
+
+        // --- RENDERING BOARD ---
+        function renderBoard() {
+            const grid = document.getElementById('cards-grid');
+            grid.innerHTML = '';
+            document.getElementById('played-count').innerText = `已玩遊戲：${playedIndices.length} / ${games.length}`;
+
+            games.forEach((game, index) => {
+                const isRevealed = revealedIndices.includes(index);
+                const isPlayed = playedIndices.includes(index);
+                const categoryColor = CATEGORY_COLORS[game.category];
+                const categoryName = CATEGORY_NAMES[game.category];
+                const iconClass = ICONS_MAP[game.icon] || 'fa-question';
+
+                const cardHTML = `
+                <div class="relative w-full aspect-[3/4] cursor-pointer perspective-1000 group transition-all duration-500 card-container ${isPlayed ? 'card-played' : ''}" onclick="handleCardClick(${index})">
+                    <div class="w-full h-full relative preserve-3d transition-all duration-700 ${isRevealed ? 'rotate-y-180' : ''}">
+                        <!-- Back (Gift Box) -->
+                        <div class="absolute w-full h-full backface-hidden bg-gradient-to-br from-red-600 to-red-800 rounded-xl border-4 border-yellow-400 shadow-lg flex flex-col items-center justify-center">
+                            <div class="absolute w-full h-4 bg-yellow-400 top-1/2 -translate-y-1/2"></div>
+                            <div class="absolute h-full w-4 bg-yellow-400 left-1/2 -translate-x-1/2"></div>
+                            <div class="z-10 bg-white/20 backdrop-blur-sm rounded-full w-12 h-12 flex items-center justify-center border-2 border-yellow-200">
+                                <span class="text-2xl font-bold text-white drop-shadow-md">${index + 1}</span>
+                            </div>
+                            <div class="absolute bottom-2 text-white/80 text-xs font-bold">CLICK ME</div>
+                        </div>
+
+                        <!-- Front (Game Info) -->
+                        <div class="absolute w-full h-full backface-hidden rotate-y-180 rounded-xl border-4 shadow-xl flex flex-col items-center justify-center p-2 text-center ${categoryColor}">
+                            <div class="mb-2 transform scale-125">
+                                <i class="fa-solid ${iconClass} text-3xl"></i>
+                            </div>
+                            <div class="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">${categoryName}</div>
+                            <h3 class="text-lg font-black leading-tight break-words mb-2">${game.title}</h3>
+                            <p class="text-[10px] opacity-90 line-clamp-2">${game.desc}</p>
+                            <button class="mt-auto bg-white/20 hover:bg-white/40 text-white text-xs py-1 px-3 rounded-full transition-colors font-bold">
+                                開始對戰
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+
+        function handleCardClick(index) {
+            if (playedIndices.includes(index)) return;
+
+            if (!revealedIndices.includes(index)) {
+                revealedIndices.push(index);
+                renderBoard(); // Re-render to show flip
+            } else {
+                startBattle(index);
+            }
+        }
+
+        // --- BATTLE LOGIC ---
+        function startBattle(index) {
+            activeGameIndex = index;
+            const game = games[index];
+            const battleView = document.getElementById('battle-view');
+            const bgClass = CATEGORY_COLORS[game.category].split(' ')[0]; // Extract bg-color class
+            
+            // Apply background color
+            battleView.className = `fixed inset-0 z-50 flex flex-col transition-colors duration-500 overflow-hidden ${bgClass}`;
+            
+            // Update Header & Icon
+            document.getElementById('battle-header-title').innerText = `${CATEGORY_NAMES[game.category]} :: ${game.title}`;
+            const iconClass = ICONS_MAP[game.icon] || 'fa-gamepad';
+            document.getElementById('battle-icon').className = `fa-solid ${iconClass} text-4xl text-white`;
+            document.getElementById('battle-footer').innerText = `Christmas Party Battle Mode • ${game.desc}`;
+
+            // Show Battle View
+            document.getElementById('board-view').classList.add('hidden');
+            document.getElementById('battle-view').classList.remove('hidden');
+
+            tabooReady = false;
+            pickRandomQuestion();
+        }
+
+        function backToBoard() {
+            // Mark as played
+            if (activeGameIndex !== null && !playedIndices.includes(activeGameIndex)) {
+                playedIndices.push(activeGameIndex);
+            }
+            
+            // Stop timers
+            stopTimer();
+            
+            // Switch views
+            document.getElementById('battle-view').classList.add('hidden');
+            document.getElementById('board-view').classList.remove('hidden');
+            renderBoard();
+            activeGameIndex = null;
+        }
+
+        function pickRandomQuestion() {
+            const game = games[activeGameIndex];
+            const randomItem = game.contentPool[Math.floor(Math.random() * game.contentPool.length)];
+            currentQuestion = randomItem;
+            
+            // Reset UI states
+            showAnswerState = false;
+            document.getElementById('answer-display').classList.add('hidden');
+            document.getElementById('answer-btn-text').innerText = '看答案';
+            resetTimer();
+
+            // Handle Taboo special case state
+            if (game.type === 'taboo') {
+                tabooReady = false;
+            }
+
+            renderQuestionContent(game, randomItem);
+        }
+
+        function renderQuestionContent(game, item) {
+            const container = document.getElementById('question-container');
+            container.innerHTML = '';
+
+            // 1. Taboo (背對模式)
+            if (game.type === 'taboo' && !tabooReady) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-80 bg-red-900/80 backdrop-blur-md rounded-3xl border-4 border-red-500 p-8 text-center animate-pulse">
+                        <i class="fa-solid fa-triangle-exclamation text-6xl text-yellow-400 mb-6"></i>
+                        <h2 class="text-4xl md:text-5xl font-black text-white mb-4">警告</h2>
+                        <p class="text-2xl text-white/90 mb-8">請參賽者背對螢幕！<br/>(這是陷害遊戲，不能看！)</p>
+                        <button onclick="setTabooReady()" class="bg-yellow-400 hover:bg-yellow-300 text-red-900 px-8 py-4 rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105">
+                            好了，顯示題目！
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // 2. Flash (閃視模式) - 題目尚未隱藏時 (邏輯：一開始顯示，然後隱藏)
+            // 簡化邏輯：Flash 模式一開始顯示，1.5秒後隱藏內容
+            if (game.type === 'flash') {
+                 // 這裡我們用一個簡單的 setTimeout 來模擬 React 的 useEffect 閃現邏輯
+                 // 先顯示內容
+                 const content = createStandardContent(game, item);
+                 container.innerHTML = content;
+                 
+                 setTimeout(() => {
+                     if (!showAnswerState) {
+                         container.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-64 bg-black/40 backdrop-blur-md rounded-3xl border border-white/20 p-6 animate-pulse">
+                                <i class="fa-solid fa-eye-slash text-6xl text-white/50 mb-4"></i>
+                                <h2 class="text-3xl font-bold text-white/80">題目已隱藏</h2>
+                                <p class="text-white/60 mt-2">請回答剛才看到的內容！</p>
+                            </div>
+                         `;
+                     }
+                 }, 1500);
+                 return;
+            }
+
+            // 3. True/False (真假冷知識)
+            if (game.type === 'true-false') {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-64 bg-white/10 backdrop-blur-md rounded-3xl shadow-inner border border-white/20 p-6 w-full">
+                        <h2 class="text-3xl md:text-5xl font-bold text-center text-white drop-shadow-lg leading-relaxed mb-8">
+                            ${item.q}
+                        </h2>
+                        <div class="flex gap-12">
+                            <div class="flex flex-col items-center text-green-400 opacity-50">
+                                <i class="fa-regular fa-circle-check text-6xl"></i>
+                                <span class="text-2xl font-bold">TRUE</span>
+                            </div>
+                            <div class="flex flex-col items-center text-red-400 opacity-50">
+                                <i class="fa-regular fa-circle-xmark text-6xl"></i>
+                                <span class="text-2xl font-bold">FALSE</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // 4. Quiz Options (選擇題)
+            if (game.type === 'quiz-options') {
+                let optionsHTML = '';
+                item.options.forEach((opt, i) => {
+                    // 為了在純 HTML 中高亮答案，我們在 showAnswer 函數中處理樣式，這裡先渲染基本按鈕
+                    optionsHTML += `<div id="opt-${i}" class="p-4 rounded-xl text-lg font-bold bg-white/20 text-white transition-all border border-transparent">${opt}</div>`;
+                });
+
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center bg-white/10 backdrop-blur-md rounded-3xl shadow-inner border border-white/20 p-6 w-full">
+                        <h2 class="text-2xl md:text-4xl font-bold text-center text-white drop-shadow-lg mb-8">${item.q}</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                            ${optionsHTML}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // 5. Timeline (排序)
+            if (game.type === 'timeline') {
+                container.innerHTML = `
+                     <div class="flex flex-col items-center justify-center bg-white/10 backdrop-blur-md rounded-3xl shadow-inner border border-white/20 p-6 w-full">
+                        <h2 class="text-xl md:text-3xl font-bold text-center text-white drop-shadow-lg mb-6 leading-relaxed">
+                            ${item.q}
+                        </h2>
+                        <div id="timeline-answer-area" class="text-white/60 animate-pulse font-bold text-xl">請搶答並排序...</div>
+                     </div>
+                `;
+                return;
+            }
+
+            // 6. Image Types & Text (標準模式)
+            container.innerHTML = createStandardContent(game, item);
+        }
+
+        function createStandardContent(game, item) {
+            const isImageGame = ['image', 'image-diff', 'image-find', 'mashup-guess', 'geo-guess', 'deepfake-guess', 'image-find-organ'].includes(game.type);
+            
+            let html = '<div class="flex flex-col items-center justify-center bg-white/10 backdrop-blur-md rounded-3xl shadow-inner border border-white/20 p-6 w-full">';
+            
+            if (isImageGame) {
+                const imgText = item.imgText || item.q;
+                const imgUrl = getImageUrl(imgText);
+                const displayTitle = (game.type === 'geo-guess' && !showAnswerState) ? '請看圖猜測' : item.q;
+                
+                html += `
+                    <div class="relative w-full max-w-3xl aspect-[2/1] bg-black/30 rounded-lg overflow-hidden mb-4 flex items-center justify-center group">
+                        <img src="${imgUrl}" class="w-full h-full object-contain bg-black">
+                        ${game.type === 'geo-guess' && !showAnswerState ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none"><i class="fa-solid fa-location-dot text-6xl text-white/50"></i></div>' : ''}
+                        <!-- Geo Guess Marker (Hidden by default) -->
+                        <div id="geo-marker" class="hidden absolute w-4 h-4 bg-red-600 rounded-full border-2 border-white shadow-xl animate-ping" style="left: ${item.x || 50}%; top: ${item.y || 50}%"></div>
+                        <div id="geo-marker-static" class="hidden absolute w-4 h-4 bg-red-600 rounded-full border-2 border-white shadow-xl" style="left: ${item.x || 50}%; top: ${item.y || 50}%"></div>
+                    </div>
+                    <h2 class="text-2xl md:text-4xl font-bold text-center text-white drop-shadow-lg leading-relaxed">${displayTitle}</h2>
+                `;
+            } else {
+                // Pure Text
+                html += `
+                    <div class="min-h-[200px] flex items-center justify-center">
+                        <h2 class="text-3xl md:text-5xl font-bold text-center text-white drop-shadow-lg leading-relaxed">${item.q}</h2>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function setTabooReady() {
+            tabooReady = true;
+            renderQuestionContent(games[activeGameIndex], currentQuestion);
+        }
+
+        function toggleAnswer() {
+            const game = games[activeGameIndex];
+            showAnswerState = !showAnswerState;
+            
+            const btnText = document.getElementById('answer-btn-text');
+            const answerDisplay = document.getElementById('answer-display');
+            
+            btnText.innerText = showAnswerState ? '隱藏答案' : '看答案';
+            
+            if (showAnswerState) {
+                // 顯示答案
+                
+                // 如果是 Flash 模式，顯示答案時要重新顯示題目圖片
+                if(game.type === 'flash') {
+                     const container = document.getElementById('question-container');
+                     container.innerHTML = createStandardContent(game, currentQuestion);
+                }
+
+                // 處理特殊類型顯示
+                if (game.type === 'true-false') {
+                    // True/False 不用下方橫幅，直接在卡片內顯示(或是保持下方橫幅也可以，這裡使用下方橫幅統一)
+                     answerDisplay.innerText = currentQuestion.a;
+                     answerDisplay.classList.remove('hidden');
+                } else if (game.type === 'quiz-options') {
+                    // 選擇題高亮
+                    currentQuestion.options.forEach((opt, i) => {
+                         const optEl = document.getElementById(`opt-${i}`);
+                         if(optEl) {
+                             if(currentQuestion.a.includes(opt.split('.')[0])) {
+                                 optEl.className = "p-4 rounded-xl text-lg font-bold bg-green-500 text-white scale-105 shadow-lg border-2 border-white transition-all";
+                             }
+                         }
+                    });
+                } else if (game.type === 'timeline') {
+                    // 排序題顯示
+                    const timelineArea = document.getElementById('timeline-answer-area');
+                    if(timelineArea) {
+                        timelineArea.className = "w-full max-w-2xl bg-white/20 p-4 rounded-xl";
+                        timelineArea.innerHTML = `
+                            <div class="text-yellow-300 font-bold mb-2 text-lg">正確順序：</div>
+                            <div class="text-2xl font-black text-white">${currentQuestion.a}</div>
+                        `;
+                    }
+                } else if (game.type === 'geo-guess') {
+                    // Google Earth 顯示紅點
+                    document.getElementById('geo-marker').classList.remove('hidden');
+                    document.getElementById('geo-marker-static').classList.remove('hidden');
+                    answerDisplay.innerText = `答案：${currentQuestion.a}`;
+                    answerDisplay.classList.remove('hidden');
+                } else {
+                    // 一般文字或圖片
+                    answerDisplay.innerText = `答案：${currentQuestion.a}`;
+                    answerDisplay.classList.remove('hidden');
+                }
+
+            } else {
+                // 隱藏答案
+                answerDisplay.classList.add('hidden');
+                
+                // 復原選擇題樣式
+                if (game.type === 'quiz-options') {
+                     currentQuestion.options.forEach((opt, i) => {
+                         const optEl = document.getElementById(`opt-${i}`);
+                         if(optEl) optEl.className = "p-4 rounded-xl text-lg font-bold bg-white/20 text-white transition-all border border-transparent";
+                    });
+                }
+                // 復原排序題樣式
+                if(game.type === 'timeline') {
+                     const timelineArea = document.getElementById('timeline-answer-area');
+                     if(timelineArea) {
+                         timelineArea.className = "text-white/60 animate-pulse font-bold text-xl";
+                         timelineArea.innerText = "請搶答並排序...";
+                     }
+                }
+            }
+        }
+
+        // --- TIMER ---
+        function toggleTimer() {
+            if (isTimerRunning) {
+                stopTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            isTimerRunning = true;
+            const btn = document.getElementById('timer-toggle-btn');
+            btn.innerText = '暫停';
+            btn.className = "px-3 py-1 rounded text-sm font-bold shadow bg-red-500 text-white";
+            
+            timerInterval = setInterval(() => {
+                timer++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            isTimerRunning = false;
+            clearInterval(timerInterval);
+            const btn = document.getElementById('timer-toggle-btn');
+            btn.innerText = '開始';
+            btn.className = "px-3 py-1 rounded text-sm font-bold shadow bg-green-500 text-white";
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timer = 0;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timer / 60).toString().padStart(2, '0');
+            const s = (timer % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+        }
+
+        function resetAll() {
+            if(confirm('確定要重置所有遊戲進度嗎？')) {
+                playedIndices = [];
+                revealedIndices = [];
+                init();
+            }
+        }
+
+        // --- START APP ---
+        init();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平面鏡反射模擬器 (已修正)</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 自訂滑桿樣式 */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #2563eb; /* blue-600 */
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #2563eb; /* blue-600 */
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8">
+       
+        <!-- 標題 -->
+        <h1 class="text-3xl font-bold text-center text-blue-400 mb-6">
+            平面鏡反射模擬器
+        </h1>
+
+        <!-- 主要佈局：左側控制/結果，右側畫布 -->
+        <div class="flex flex-col md:flex-row gap-6 md:gap-8">
+
+            <!-- 左側區域 -->
+            <div class="w-full md:w-1/3 flex-shrink-0 space-y-6">
+               
+                <!-- 控制區域 -->
+                <div class="bg-gray-700 p-5 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-blue-300">控制面板</h2>
+                   
+                    <!-- 滑桿 1: 鏡子夾角 -->
+                    <div class="mb-5">
+                        <label for="thetaSlider" class="block text-sm font-medium mb-2">
+                            鏡子夾角 (θ):
+                            <span id="thetaValue" class="font-bold text-lg text-blue-300">60°</span>
+                        </label>
+                        <input type="range" id="thetaSlider" min="10" max="135" value="60" step="1"
+                               class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    </div>
+                   
+                    <!-- 滑桿 2: 入射角 (i1) -->
+                    <div>
+                        <label for="i1Slider" class="block text-sm font-medium mb-2">
+                            第一次入射角 (i₁):
+                            <span id="i1Value" class="font-bold text-lg text-blue-300">45°</span>
+                        </label>
+                        <input type="range" id="i1Slider" min="1" max="89" value="45" step="1"
+                               class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    </div>
+                </div>
+
+                <!-- 結果區域 -->
+                <div class="bg-gray-700 p-5 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-green-300">計算結果</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-300">第二次掠射角 (α₂):</span>
+                            <span id="alpha2Result" class="text-2xl font-bold text-green-400">75.0°</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-300">第二次入射角 (i₂):</span>
+                            <span id="i2Result" class="text-2xl font-bold text-green-400">15.0°</span>
+                        </div>
+                        <hr class="border-gray-500 my-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg text-green-300">最終反射角 (r₂):</span>
+                            <span id="r2Result" class="text-3xl font-bold text-green-400">15.0°</span>
+                        </div>
+                    </div>
+                    <p id="missMessage" class="text-center text-yellow-400 font-medium mt-4 p-2 bg-yellow-900/50 rounded-md" style="display: none;">
+                        注意：光線未擊中第二面鏡子！
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- 右側畫布 -->
+            <div class="w-full md:w-2/3 bg-black rounded-lg overflow-hidden shadow-inner border-2 border-gray-700">
+                <canvas id="reflectionCanvas" class="w-full h-full"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- 輔助函數 ---
+        const degToRad = (deg) => deg * Math.PI / 180;
+        const radToDeg = (rad) => rad * 180 / Math.PI;
+
+        // --- 繪圖輔助函數 ---
+        function drawLine(ctx, x1, y1, x2, y2, color, width = 1, dashes = false) {
+            ctx.beginPath();
+            if (dashes) {
+                ctx.setLineDash([5, 5]);
+            }
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.stroke();
+            ctx.setLineDash([]); // 重置虛線
+        }
+
+        function drawArc(ctx, x, y, radius, startAngle, endAngle, color, label = '', labelOffset = 0) {
+            // 確保 startAngle 和 endAngle 的順序正確 (用於繪製)
+            const s = Math.min(startAngle, endAngle);
+            const e = Math.max(startAngle, endAngle);
+           
+            ctx.beginPath();
+            // Canvas Y 軸向下，角度順時針為正。我們使用負角度來使其符合數學直覺（逆時針為正）
+            ctx.arc(x, y, radius, -s, -e, true); // true for counter-clockwise
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+           
+            if (label) {
+                const midAngle = (s + e) / 2;
+                const labelRadius = radius + labelOffset;
+                ctx.fillStyle = color;
+                ctx.font = '16px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // 使用 -midAngle 來放置標籤
+                ctx.fillText(label, x + labelRadius * Math.cos(-midAngle), y + labelRadius * Math.sin(-midAngle));
+            }
+        }
+
+        function drawText(ctx, text, x, y, color, size = 14) {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px Inter`;
+            ctx.fillText(text, x, y);
+        }
+
+        // --- DOM 元素獲取 ---
+        const canvas = document.getElementById('reflectionCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const thetaSlider = document.getElementById('thetaSlider');
+        const i1Slider = document.getElementById('i1Slider');
+        const thetaValue = document.getElementById('thetaValue');
+        const i1Value = document.getElementById('i1Value');
+
+        const alpha2Result = document.getElementById('alpha2Result');
+        const i2Result = document.getElementById('i2Result');
+        const r2Result = document.getElementById('r2Result');
+        const missMessage = document.getElementById('missMessage');
+
+        // --- 繪圖與計算主函數 ---
+        function draw() {
+            // 1. 響應式調整畫布大小
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            // 2. 獲取當前角度值 (Degrees)
+            const thetaDeg = parseFloat(thetaSlider.value);
+            const i1Deg = parseFloat(i1Slider.value); // 這是入射角 i₁
+
+            // 3. 更新顯示的數值
+            thetaValue.textContent = `${thetaDeg}°`;
+            i1Value.textContent = `${i1Deg}°`;
+
+            // 4. 清空畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 5. 設定座標系
+            // 原點 O (鏡子交點) 移到左下角
+            const O = { x: canvas.width * 0.15, y: canvas.height * 0.75 };
+            const mirrorLength = canvas.width; // 鏡子長度
+            const rayLength = canvas.width * 0.8; // 光線長度縮短
+
+            // --- 繪製鏡子 ---
+            const thetaRad = degToRad(thetaDeg);
+           
+            // 鏡子 BO (水平)
+            const B = { x: O.x + mirrorLength, y: O.y };
+            drawLine(ctx, O.x, O.y, B.x, B.y, '#4b5563', 4); // gray-600
+            drawText(ctx, 'Mirror BO', O.x + 150, O.y + 20, '#9ca3af'); // gray-400
+
+            // 鏡子 AO (傾斜)
+            const mirrorAngle_AO = thetaRad; // 數學角度
+            const A = {
+                x: O.x + mirrorLength * Math.cos(mirrorAngle_AO),
+                y: O.y - mirrorLength * Math.sin(mirrorAngle_AO) // Y 軸反轉
+            };
+            drawLine(ctx, O.x, O.y, A.x, A.y, '#4b5563', 4); // gray-600
+            drawText(ctx, 'Mirror AO', O.x + 50 * Math.cos(mirrorAngle_AO / 2), O.y - 50 * Math.sin(mirrorAngle_AO / 2) - 10, '#9ca3af');
+
+            // 繪製夾角 θ
+            drawArc(ctx, O.x, O.y, 40, 0, mirrorAngle_AO, '#38bdf8', 'θ', 15); // blue-400
+
+            // --- 核心計算 (使用 i₁) ---
+            const i1Rad = degToRad(i1Deg);
+           
+            // 1. 計算 i2 (第二次入射角)
+            // 核心公式: i₂ = θ - i₁  (或 i₂ = i₁ - θ，我們用絕對值)
+            const i2Deg = thetaDeg - i1Deg;
+            const i2Rad = degToRad(i2Deg);
+           
+            // 2. 計算 r2 (最終反射角)
+            const r2Deg = i2Deg; // r₂ = i₂
+           
+            // 3. 計算 alpha2 (第二次掠射角)
+            const alpha2Deg = 90.0 - i2Deg;
+            const alpha2Rad = degToRad(alpha2Deg);
+
+
+            // --- *** 修正後的幾何計算 *** ---
+           
+            // 1. 固定 C 點
+            const distOC = Math.min(canvas.width, canvas.height) * 0.3;
+            const C = {
+                x: O.x + distOC * Math.cos(mirrorAngle_AO),
+                y: O.y - distOC * Math.sin(mirrorAngle_AO) // Y 軸反轉
+            };
+           
+            // 2. 計算 C 點的法線
+            // 法線必須指向 "外側" (光線來的地方)
+            const normal1Angle_math = mirrorAngle_AO + Math.PI / 2;
+           
+            // 3. 計算入射光 P-C 的角度
+            // 入射光 P-C 應該在法線的 "逆時針" (角度較大) 一側
+            const incidentAngle_math = normal1Angle_math + i1Rad;
+           
+            // 4. 計算反射光 C-D 的角度
+            // 反射光 C-D 應該在法線的 "順時針" (角度較小) 一側
+            const reflect1Angle_math = normal1Angle_math - i1Rad;
+
+            // 5. 計算 P 點
+            // P 是 C 點 "沿著" 入射光線反推回去的點
+            const P = {
+                x: C.x + rayLength * Math.cos(incidentAngle_math + Math.PI),
+                y: C.y - rayLength * Math.sin(incidentAngle_math + Math.PI) // Y 軸反轉
+            };
+           
+            // 6. 計算 D 點 (C-D 與 B-O 的交點)
+            const m_CD_canvas = -Math.tan(reflect1Angle_math);
+            const Dx = C.x + (O.y - C.y) / m_CD_canvas;
+            const D = { x: Dx, y: O.y };
+
+            // 7. 計算 D 點的反射光 Q
+            const reflect2Angle_math = alpha2Rad;
+            const Q = {
+                x: D.x + rayLength * Math.cos(reflect2Angle_math),
+                y: D.y - rayLength * Math.sin(reflect2Angle_math) // Y 軸反轉
+            };
+
+            // --- 判斷光線是否擊中 ---
+            // 條件: D 點必須在 O 點右側
+            const willHit = (D.x > O.x);
+
+            // --- 更新計算結果面板 ---
+            alpha2Result.textContent = `${Math.abs(alpha2Deg).toFixed(1)}°`;
+            i2Result.textContent = `${Math.abs(i2Deg).toFixed(1)}°`;
+            r2Result.textContent = `${Math.abs(r2Deg).toFixed(1)}°`;
+
+            if (willHit) {
+                // --- 繪製光線與角度 ---
+                missMessage.style.display = 'none';
+
+                // 繪製光線 P-C (入射)
+                drawLine(ctx, P.x, P.y, C.x, C.y, '#f87171', 2); // red-400
+                // 繪製光線 C-D (反射1)
+                drawLine(ctx, C.x, C.y, D.x, D.y, '#f87171', 2); // red-400
+                // 繪製光線 D-Q (反射2)
+                drawLine(ctx, D.x, D.y, Q.x, Q.y, '#f87171', 2); // red-400
+
+                // 繪製法線 1 (at C)
+                const N1_end = {
+                    x: C.x + 50 * Math.cos(normal1Angle_math),
+                    y: C.y - 50 * Math.sin(normal1Angle_math)
+                }
+                drawLine(ctx, C.x, C.y, N1_end.x, N1_end.y, '#60a5fa', 1, true); // blue-400 dashed
+               
+                // 繪製角度 i₁ (P-C 與 N1)
+                drawArc(ctx, C.x, C.y, 30, incidentAngle_math, normal1Angle_math, '#a3e635', 'i₁', 15); // lime-400
+                // 繪製角度 r₁ (C-D 與 N1)
+                drawArc(ctx, C.x, C.y, 30, reflect1Angle_math, normal1Angle_math, '#a3e635', 'r₁', 15);
+
+
+                // 繪製法線 2 (at D)
+                const normal2Angle_math = Math.PI / 2; // 90 deg (向上)
+                drawLine(ctx, D.x, D.y, D.x, D.y - 50, '#60a5fa', 1, true); // blue-400 dashed
+               
+                // 繪製 i₂ (C-D 與 N2)
+                drawArc(ctx, D.x, D.y, 30, reflect1Angle_math, normal2Angle_math, '#a3e635', 'i₂', 15); // lime-400
+                // 繪製 r₂ (D-Q 與 N2)
+                drawArc(ctx, D.x, D.y, 30, reflect2Angle_math, normal2Angle_math, '#ef4444', 'r₂', 15); // red-500
+               
+                // --- *** 計算並繪製 P-C 和 D-Q 的交點 *** ---
+               
+                // P-C 線的 Canvas 斜率和截距
+                const m_PC = -Math.tan(incidentAngle_math);
+                const b_PC = C.y - m_PC * C.x;
+
+                // D-Q 線的 Canvas 斜率和截距
+                const m_DQ = -Math.tan(reflect2Angle_math);
+                const b_DQ = D.y - m_DQ * D.x;
+               
+                // 檢查平行線
+                if (Math.abs(m_PC - m_DQ) > 0.01) { // 避免除以零
+                    // 計算交點 I
+                    const ix = (b_DQ - b_PC) / (m_PC - m_DQ);
+                    const iy = m_PC * ix + b_PC;
+
+                    // 檢查交點是否在 "光線路徑上"
+                    // 1. I 必須在 C 的 "入射" 側
+                    const valid_I_on_PC = Math.sign(ix - C.x) === Math.sign(P.x - C.x);
+                    // 2. I 必須在 D 的 "反射" 側
+                    const valid_I_on_DQ = Math.sign(ix - D.x) === Math.sign(Q.x - D.x);
+
+                    if (valid_I_on_PC && valid_I_on_DQ) {
+                        // 計算交角
+                        let betaDeg = radToDeg(Math.abs(incidentAngle_math - reflect2Angle_math));
+                        if (betaDeg > 180) {
+                            betaDeg = 360 - betaDeg;
+                        }
+                        if (betaDeg > 90) { // 取銳角
+                            betaDeg = 180 - betaDeg;
+                        }
+
+                        // *** 修正點：標示銳角 ***
+                        const betaLabel = `β = ${betaDeg.toFixed(1)}°`;
+                        // 畫銳角 (P 方向 和 Q 方向的夾角)
+                        // P 的方向 = incidentAngle_math + PI
+                        // Q 的方向 = reflect2Angle_math
+                        drawArc(ctx, ix, iy, 25, reflect2Angle_math, incidentAngle_math + Math.PI, '#facc15', betaLabel, 15); // yellow-400
+                    }
+                }
+
+
+            } else {
+                // --- 光線未擊中 ---
+                missMessage.style.display = 'block';
+
+                // 繪製未擊中的光線 (灰色)
+                drawLine(ctx, P.x, P.y, C.x, C.y, '#6b7280', 2); // gray-500
+               
+                const D_refl = {
+                    x: C.x + rayLength * Math.cos(reflect1Angle_math),
+                    y: C.y - rayLength * Math.sin(reflect1Angle_math)
+                };
+                drawLine(ctx, C.x, C.y, D_refl.x, D_refl.y, '#6b7280', 2); // gray-500
+            }
+        }
+
+        // --- 事件監聽 ---
+        function onResize() {
+            draw();
+        }
+
+        function onSliderInput() {
+            draw();
+        }
+
+        window.addEventListener('resize', onResize);
+        thetaSlider.addEventListener('input', onSliderInput);
+        i1Slider.addEventListener('input', onSliderInput);
+
+        // --- 初始繪製 ---
+        // 確保在字體和佈局穩定後再繪製
+        window.onload = () => {
+            // 設定為原始題目的條件
+            // theta = 60
+            // alpha1 = 45 -> i1 = 45
+            thetaSlider.value = 60;
+            i1Slider.value = 45;
+            draw();
+        };
+
+    </script>
+
+</body>
+</html>

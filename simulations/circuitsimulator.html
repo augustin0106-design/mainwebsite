@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電流物流模擬系統 (教學版)</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #4CAF50;
+            --highlight-color: #FFC107;
+            --danger-color: #FF5252;
+            --wire-color: #555;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            background-color: #000;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; }
+        .mode-toggles { display: flex; gap: 10px; }
+        .mode-toggles button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .mode-toggles button.active {
+            background: var(--accent-color);
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+        }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 60px);
+        }
+
+        /* Sidebar Controls */
+        .controls {
+            width: 340px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group {
+            background: #383838;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-color);
+            transition: opacity 0.3s;
+        }
+        .control-group.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .control-group h3 { margin-top: 0; font-size: 1rem; color: var(--highlight-color); }
+        
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; }
+        
+        input[type=range] {
+            width: 100%;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+
+        .value-display {
+            float: right;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        /* Data Dashboard */
+        .dashboard {
+            background: #383838;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .stat-label { color: #aaa; }
+        .stat-value { font-family: monospace; font-size: 1.1em; color: white; }
+        .analogy-text {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        /* Canvas Area */
+        .simulation-area {
+            flex: 1;
+            position: relative;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            background: radial-gradient(circle, #333 0%, #1a1a1a 100%);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 4px;
+        }
+
+        /* Legend */
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; font-size: 0.8rem; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🚚 電流物流模擬系統 <span style="font-size:0.8em; color:#888;">| V=載貨量, I=車速, R=卸貨阻礙, P=收貨效率</span></h1>
+    <div class="mode-toggles">
+        <button id="btnSingle" onclick="setMode('single')">單電阻模式</button>
+        <button id="btnSeries" class="active" onclick="setMode('series')">串聯模式</button>
+        <button id="btnParallel" onclick="setMode('parallel')">並聯模式</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="controls">
+        <!-- Sliders -->
+        <div class="control-group">
+            <h3>發貨中心 (電池)</h3>
+            <label>總電壓 (V) - 初始載貨量 <span id="val-v" class="value-display">12V</span></label>
+            <input type="range" id="slider-v" min="1" max="24" value="12" step="1">
+            <div class="analogy-text">調整每台車出發時載多少箱貨</div>
+        </div>
+
+        <div class="control-group" id="ctrl-r1">
+            <h3>收貨站 1 (電阻 R1)</h3>
+            <label>阻礙程度 (Ω) <span id="val-r1" class="value-display">10Ω</span></label>
+            <input type="range" id="slider-r1" min="1" max="50" value="10" step="1">
+            <div class="analogy-text">阻值越大，卸貨越難，車流越慢</div>
+        </div>
+
+        <div class="control-group" id="ctrl-r2">
+            <h3>收貨站 2 (電阻 R2)</h3>
+            <label>阻礙程度 (Ω) <span id="val-r2" class="value-display">10Ω</span></label>
+            <input type="range" id="slider-r2" min="1" max="50" value="10" step="1">
+            <div class="analogy-text">阻值越大，卸貨越難，車流越慢</div>
+        </div>
+
+        <!-- Real-time Stats -->
+        <div class="dashboard">
+            <h3>📊 物流監控儀表板</h3>
+            
+            <div class="stat-row">
+                <div>
+                    <div class="stat-label">總車流量 (總電流 I)</div>
+                    <div class="analogy-text">每秒通過的車子數量</div>
+                </div>
+                <div class="stat-value" id="display-i-total">0.00 A</div>
+            </div>
+
+            <div class="stat-row" id="row-p1">
+                <div>
+                    <div class="stat-label">站點 1 收貨效率 (P1)</div>
+                    <div class="analogy-text">每秒收到貨物箱數</div>
+                </div>
+                <div class="stat-value" id="display-p1">0.00 W</div>
+            </div>
+
+            <div class="stat-row" id="row-p2">
+                <div>
+                    <div class="stat-label">站點 2 收貨效率 (P2)</div>
+                    <div class="analogy-text">每秒收到貨物箱數</div>
+                </div>
+                <div class="stat-value" id="display-p2">0.00 W</div>
+            </div>
+
+            <div class="stat-row" style="border-bottom: none;">
+                <div>
+                    <div class="stat-label" style="color:var(--highlight-color)">總收貨效率 (P Total)</div>
+                    <div class="analogy-text">全系統每秒卸貨總量</div>
+                </div>
+                <div class="stat-value" id="display-p-total" style="color:var(--highlight-color)">0.00 W</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="simulation-area">
+        <canvas id="simCanvas"></canvas>
+        <div class="legend">
+            <div class="legend-item"><div class="dot" style="background:#FF5252"></div>滿載 (高電位)</div>
+            <div class="legend-item"><div class="dot" style="background:#FFC107"></div>部分載貨 (分壓後)</div>
+            <div class="legend-item"><div class="dot" style="background:#555"></div>空車 (回流/零電位)</div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Configuration & State
+ */
+const state = {
+    mode: 'series', // 'single', 'series', 'parallel'
+    V: 12,
+    R1: 10,
+    R2: 10,
+    // Physics results
+    I_total: 0,
+    I1: 0, 
+    I2: 0,
+    V1: 0,
+    V2: 0,
+    P1: 0,
+    P2: 0,
+    P_total: 0,
+    R_total: 0
+};
+
+// Canvas Setup
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+let trucks = [];
+let animationFrameId;
+
+// Physics Constants for Animation
+const SPEED_FACTOR = 1.0; 
+const MAX_TRUCKS = 25; 
+const SPAWN_RATE_FACTOR = 6; 
+
+/**
+ * Initialization
+ */
+function init() {
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Listeners
+    document.getElementById('slider-v').addEventListener('input', updatePhysics);
+    document.getElementById('slider-r1').addEventListener('input', updatePhysics);
+    document.getElementById('slider-r2').addEventListener('input', updatePhysics);
+    
+    // Default mode
+    setMode('series');
+    
+    // Start Loop
+    animate();
+}
+
+function resizeCanvas() {
+    const parent = canvas.parentElement;
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+}
+
+function setMode(mode) {
+    state.mode = mode;
+    document.getElementById('btnSingle').className = mode === 'single' ? 'active' : '';
+    document.getElementById('btnSeries').className = mode === 'series' ? 'active' : '';
+    document.getElementById('btnParallel').className = mode === 'parallel' ? 'active' : '';
+    
+    // UI Logic
+    const r2Group = document.getElementById('ctrl-r2');
+    const rowP2 = document.getElementById('row-p2');
+    
+    if (mode === 'single') {
+        r2Group.classList.add('disabled');
+        rowP2.style.display = 'none';
+    } else {
+        r2Group.classList.remove('disabled');
+        rowP2.style.display = 'flex';
+    }
+    
+    // Clear trucks
+    trucks = [];
+    updatePhysics();
+}
+
+/**
+ * Core Physics Logic
+ */
+function updatePhysics() {
+    // Read Inputs
+    state.V = parseFloat(document.getElementById('slider-v').value);
+    state.R1 = parseFloat(document.getElementById('slider-r1').value);
+    state.R2 = parseFloat(document.getElementById('slider-r2').value);
+
+    // Update UI Labels
+    document.getElementById('val-v').innerText = state.V + 'V';
+    document.getElementById('val-r1').innerText = state.R1 + 'Ω';
+    document.getElementById('val-r2').innerText = state.R2 + 'Ω';
+
+    if (state.mode === 'single') {
+        state.R_total = state.R1;
+        state.I_total = state.V / state.R_total;
+        
+        state.I1 = state.I_total; 
+        state.I2 = 0;
+
+        state.V1 = state.V;
+        state.V2 = 0;
+
+        state.P1 = state.I_total * state.V1;
+        state.P2 = 0;
+
+    } else if (state.mode === 'series') {
+        state.R_total = state.R1 + state.R2;
+        state.I_total = state.V / state.R_total;
+        
+        state.I1 = state.I_total; 
+        state.I2 = state.I_total;
+
+        state.V1 = state.I_total * state.R1;
+        state.V2 = state.I_total * state.R2;
+
+        state.P1 = state.I_total * state.V1;
+        state.P2 = state.I_total * state.V2;
+
+    } else {
+        // Parallel
+        state.R_total = 1 / ((1/state.R1) + (1/state.R2));
+        
+        state.V1 = state.V;
+        state.V2 = state.V;
+
+        state.I1 = state.V / state.R1;
+        state.I2 = state.V / state.R2;
+        state.I_total = state.I1 + state.I2;
+
+        state.P1 = state.I1 * state.V;
+        state.P2 = state.I2 * state.V;
+    }
+
+    state.P_total = state.P1 + state.P2;
+
+    // Update Dashboard
+    document.getElementById('display-i-total').innerText = state.I_total.toFixed(2) + ' A';
+    document.getElementById('display-p1').innerText = state.P1.toFixed(1) + ' W';
+    document.getElementById('display-p2').innerText = state.P2.toFixed(1) + ' W';
+    document.getElementById('display-p-total').innerText = state.P_total.toFixed(1) + ' W';
+}
+
+/**
+ * Truck System
+ */
+class Truck {
+    constructor(pathType) {
+        this.pathType = pathType; // 'main', 'branch1', 'branch2'
+        this.progress = 0; 
+        this.cargo = 1.0; 
+        this.color = '#FF5252';
+        this.hasDroppedR1 = false;
+        this.hasDroppedR2 = false;
+    }
+
+    update() {
+        // Speed logic
+        let speed = 0;
+        if (state.mode === 'series' || state.mode === 'single') {
+            speed = state.I_total * SPEED_FACTOR / 200; 
+        } else {
+            if (this.pathType === 'branch1') speed = state.I1 * SPEED_FACTOR / 200;
+            else if (this.pathType === 'branch2') speed = state.I2 * SPEED_FACTOR / 200;
+        }
+
+        // Minimum visual speed
+        if (speed < 0.0005 && state.V > 0) speed = 0.0005; 
+
+        // Move
+        const prevProgress = this.progress;
+        this.progress += speed;
+
+        // --- Cargo Logic (Drop exactly at resistor) ---
+        // Path mapping: 
+        // 0.0 = Battery (Start)
+        // Series/Single: 0.25 (Top, R1), 0.75 (Bottom, R2)
+        // Parallel: 0.5 (Right Side, Resistor location varies but logic similar)
+
+        // Reset if wrapped around
+        if (this.progress >= 1.0) {
+            // Reached battery/start again
+            this.hasDroppedR1 = false;
+            this.hasDroppedR2 = false;
+            this.cargo = 1.0; // Refill at battery
+            this.progress -= 1.0;
+        }
+
+        // Series / Single Logic
+        if (state.mode === 'series' || state.mode === 'single') {
+            // R1 is at approx 0.25
+            if (!this.hasDroppedR1 && this.progress > 0.25) {
+                const drop = state.V1 / state.V;
+                this.cargo = Math.max(0, this.cargo - drop);
+                this.hasDroppedR1 = true;
+            }
+            // R2 is at approx 0.75 (only if Series)
+            if (state.mode === 'series') {
+                if (!this.hasDroppedR2 && this.progress > 0.75) {
+                    const drop = state.V2 / state.V;
+                    this.cargo = Math.max(0, this.cargo - drop);
+                    this.hasDroppedR2 = true;
+                }
+            } else {
+                 // Single mode: R1 drops everything if V1=V, but let's ensure it clears
+                 if (this.progress > 0.25 && this.cargo > 0.01) this.cargo = 0;
+            }
+        } 
+        // Parallel Logic
+        else {
+            // In our parallel paths (see getRectPathFromLeft), 
+            // 0.0 = Battery
+            // 0.25 = Top/Bottom split
+            // 0.50 = Far Right (Wait, need to check path structure)
+            
+            // Let's assume R is roughly at 0.5 (halfway through the loop)
+            if (!this.hasDroppedR1 && this.progress > 0.50) {
+                this.cargo = 0; // Parallel always drops full load
+                this.hasDroppedR1 = true;
+            }
+        }
+
+        // Color Update
+        if (this.cargo > 0.8) this.color = '#FF5252'; 
+        else if (this.cargo > 0.1) this.color = '#FFC107'; 
+        else this.color = '#555'; 
+
+        return false; // Trucks live forever now, they loop
+    }
+
+    draw(pathPoints) {
+        const totalLen = pathPoints.length;
+        const index = Math.floor(this.progress * (totalLen - 1));
+        const p = pathPoints[index];
+        
+        if (!p) return;
+
+        const x = p.x;
+        const y = p.y;
+
+        // Draw Truck
+        ctx.fillStyle = '#EEE';
+        ctx.fillRect(x - 10, y - 6, 20, 12);
+        
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); arc(x-6, y+6, 3); ctx.fill();
+        ctx.beginPath(); arc(x+6, y+6, 3); ctx.fill();
+
+        // Draw Cargo
+        const cargoH = 8 * (this.cargo > 0 ? this.cargo : 0.05); 
+        ctx.fillStyle = this.color;
+        ctx.fillRect(x - 8, y - 6 - cargoH, 16, cargoH);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - 8, y - 6 - cargoH, 16, cargoH);
+    }
+}
+
+function arc(x, y, r) {
+    ctx.arc(x, y, r, 0, Math.PI*2);
+}
+
+/**
+ * Path Generators (Modified to start at Left-Middle/Battery)
+ */
+function getRectPathFromLeft(x, y, w, h) {
+    // Start at Left-Middle (Battery location)
+    // Go Up -> Right -> Down -> Left -> Up to Start
+    const points = [];
+    const steps = 400; 
+    
+    // Per leg steps (approx)
+    const legV = h/2;
+    const legH = w;
+    const totalLen = (h + w) * 2;
+    
+    // 1. Up (Left Middle to Top Left)
+    const s1 = Math.floor(steps * (legV / totalLen));
+    for(let i=0; i<=s1; i++) points.push({x: x, y: y + h/2 - (h/2 * i/s1)});
+    
+    // 2. Right (Top Left to Top Right)
+    const s2 = Math.floor(steps * (legH / totalLen));
+    for(let i=0; i<=s2; i++) points.push({x: x + (w * i/s2), y: y});
+    
+    // 3. Down (Top Right to Bottom Right)
+    const s3 = Math.floor(steps * (h / totalLen));
+    for(let i=0; i<=s3; i++) points.push({x: x + w, y: y + (h * i/s3)});
+    
+    // 4. Left (Bottom Right to Bottom Left)
+    const s4 = Math.floor(steps * (legH / totalLen));
+    for(let i=0; i<=s4; i++) points.push({x: x + w - (w * i/s4), y: y + h});
+    
+    // 5. Up (Bottom Left to Left Middle)
+    const s5 = steps - s1 - s2 - s3 - s4;
+    for(let i=0; i<=s5; i++) points.push({x: x, y: y + h - (h/2 * i/s5)});
+    
+    return points;
+}
+
+function getSeriesPath(cw, ch) {
+    const pad = 100;
+    const w = cw - pad*2;
+    const h = ch - pad*2;
+    return getRectPathFromLeft(pad, pad, w, h);
+}
+
+function getParallelPath1(cw, ch) {
+    // Inner Loop (R1) - Top Half
+    const pad = 100;
+    const w = cw - pad*2;
+    const h = ch - pad*2;
+    // Modified to use top half only but start left-middle
+    // Battery is at pad, pad+h/2.
+    // Loop: Bat -> TopLeft -> TopRight -> MidRight -> MidLeft -> Bat
+    
+    const points = [];
+    const steps = 400;
+    
+    // 1. Up (Bat to Top Left)
+    const s1 = 50; 
+    for(let i=0; i<=s1; i++) points.push({x: pad, y: pad+h/2 - (h/2 * i/s1)});
+    
+    // 2. Right (Top)
+    const s2 = 100;
+    for(let i=0; i<=s2; i++) points.push({x: pad + (w*i/s2), y: pad});
+    
+    // 3. Down to Mid
+    const s3 = 50;
+    for(let i=0; i<=s3; i++) points.push({x: pad+w, y: pad + (h/2 * i/s3)});
+    
+    // 4. Left (Mid)
+    const s4 = 100;
+    for(let i=0; i<=s4; i++) points.push({x: pad+w - (w*i/s4), y: pad + h/2});
+    
+    // 5. Back to Bat (it's actually connected, but let's just hold there or loop)
+    // Actually the logic above for P1 path was "Middle Bar".
+    // Let's reuse simple rect logic but squashed?
+    // No, standard parallel drawing has branches.
+    // Let's stick to the visual path: Outer loop and Inner loop sharing the left/right verticals.
+    
+    // This simple rect path logic works for the top loop visual if we just squish height?
+    // Let's use getRectPathFromLeft with height/2? 
+    // Yes, that makes a loop from Bat -> Top -> RightMid -> Bat.
+    return getRectPathFromLeft(pad, pad, w, h/2);
+}
+
+function getParallelPath2(cw, ch) {
+    // Outer Loop (R2) - Full Height
+    // But we need to skip the middle wire visually for the path?
+    // No, R2 is usually on the separate branch.
+    // Let's make R2 the Bottom branch.
+    // Path: Bat -> BottomLeft -> BottomRight -> MidRight -> MidLeft...
+    // To keep it simple: Use Full Rect. 
+    // Bat(LeftMid) -> TopLeft -> TopRight -> BottomRight -> BottomLeft -> Bat.
+    // This passes R1 position? No, R1 is on Middle Bar.
+    // R2 is on Bottom Bar.
+    // So this path works for R2.
+    const pad = 100;
+    const w = cw - pad*2;
+    const h = ch - pad*2;
+    return getRectPathFromLeft(pad, pad, w, h);
+}
+
+
+/**
+ * Spawner
+ */
+let spawnTimer = 0;
+function manageSpawning() {
+    spawnTimer++;
+    
+    if (state.mode === 'series' || state.mode === 'single') {
+        const threshold = 60 / (state.I_total * SPAWN_RATE_FACTOR); 
+        if (spawnTimer > threshold && trucks.length < MAX_TRUCKS) {
+            trucks.push(new Truck('main'));
+            spawnTimer = 0;
+        }
+    } else {
+        const totalI = state.I1 + state.I2;
+        const combinedThreshold = 60 / (totalI * SPAWN_RATE_FACTOR);
+        
+        if (spawnTimer > combinedThreshold && trucks.length < MAX_TRUCKS) {
+            const r = Math.random();
+            const ratio = state.I1 / totalI;
+            const type = r < ratio ? 'branch1' : 'branch2';
+            trucks.push(new Truck(type));
+            spawnTimer = 0;
+        }
+    }
+}
+
+/**
+ * Rendering
+ */
+function drawCircuit() {
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const pad = 100;
+    const w = cw - pad*2;
+    const h = ch - pad*2;
+
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Battery Position (Left Middle)
+    const batX = pad;
+    const batY = pad + h/2;
+
+    if (state.mode === 'single') {
+        // Single Loop (same as Series but no R2)
+        ctx.strokeStyle = '#555';
+        ctx.strokeRect(pad, pad, w, h);
+        
+        // R1 Top Middle
+        drawResistor(pad + w/2, pad, state.R1, "收貨站 1", state.P1);
+        
+        // R2 Position is just wire
+        // (Nothing to draw)
+
+    } else if (state.mode === 'series') {
+        // Series Loop
+        ctx.strokeStyle = '#555';
+        ctx.strokeRect(pad, pad, w, h);
+
+        // R1 Top Middle
+        drawResistor(pad + w/2, pad, state.R1, "收貨站 1", state.P1);
+        // R2 Bottom Middle
+        drawResistor(pad + w/2, pad + h, state.R2, "收貨站 2", state.P2);
+
+    } else {
+        // Parallel
+        ctx.strokeStyle = '#555';
+        // Outer loop
+        ctx.strokeRect(pad, pad, w, h);
+        // Inner wire (Crossbar at mid)
+        ctx.beginPath();
+        ctx.moveTo(pad, pad + h/2);
+        ctx.lineTo(pad + w, pad + h/2);
+        ctx.stroke();
+
+        // R1 Middle Bar
+        // Note: For parallel pathing, we used "Top Rect" for P1.
+        // That means R1 should be on the right vertical or top?
+        // Let's align visual with path:
+        // P1 Path: Bat -> Top -> RightMid -> Bat.
+        // So R1 should be on Top? Or Right?
+        // Standard Diagram: Battery Left. R1 and R2 vertical rungs.
+        // Here we drew loops.
+        // Let's put R1 on the Top wire for P1? No that's weird.
+        // Let's stick to the visual: R1 on Middle Bar, R2 on Bottom Bar.
+        // Path P1: Bat -> Top -> Right -> Mid -> Bat. 
+        // This passes R1 on the 'Mid' return leg.
+        drawResistor(pad + w/2, pad + h/2, state.R1, "收貨站 1", state.P1);
+        drawResistor(pad + w/2, pad + h, state.R2, "收貨站 2", state.P2);
+    }
+
+    drawBattery(batX, batY, state.V);
+}
+
+function drawResistor(x, y, rVal, label, power) {
+    // Glow Effect
+    if (power > 0) {
+        ctx.save();
+        // Adjusted for better visibility at low power (e.g., 10 units)
+        const glowRadius = Math.min(150, 30 + power * 4); 
+        const alpha = Math.min(0.9, 0.4 + power / 60);
+        
+        const grd = ctx.createRadialGradient(x, y, 10, x, y, glowRadius);
+        grd.addColorStop(0, `rgba(255, 255, 100, ${alpha})`);
+        grd.addColorStop(1, 'rgba(255, 255, 100, 0)');
+        
+        ctx.fillStyle = grd;
+        ctx.globalCompositeOperation = 'lighter';
+        // Increased fill rect to accommodate larger glow
+        ctx.fillRect(x - 150, y - 150, 300, 300);
+        ctx.restore();
+    }
+
+    // Resistor Body
+    ctx.fillStyle = '#2d2d2d';
+    ctx.fillRect(x - 40, y - 25, 80, 50);
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 40, y - 25, 80, 50);
+    
+    // Label
+    ctx.fillStyle = '#FFF';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText(label, x, y - 7);
+    ctx.fillStyle = '#AAA';
+    ctx.font = '10px Arial';
+    ctx.fillText(rVal + "Ω", x, y + 15);
+
+    // Power Text Animation
+    ctx.fillStyle = '#FFC107';
+    ctx.font = 'bold 14px monospace';
+    ctx.shadowColor = "black";
+    ctx.shadowBlur = 4;
+    ctx.fillText(power.toFixed(1) + " 箱/秒", x, y - 35);
+    ctx.shadowBlur = 0;
+}
+
+function drawBattery(x, y, vVal) {
+    ctx.fillStyle = '#222'; 
+    ctx.fillRect(x - 10, y - 30, 20, 60);
+
+    ctx.strokeStyle = '#4CAF50'; 
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x - 10, y - 20);
+    ctx.lineTo(x + 10, y - 20); 
+    ctx.stroke();
+    
+    ctx.strokeStyle = '#555'; 
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y + 20);
+    ctx.lineTo(x + 6, y + 20); 
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y - 30); ctx.lineTo(x, y - 20);
+    ctx.moveTo(x, y + 20); ctx.lineTo(x, y + 30);
+    ctx.stroke();
+
+    ctx.fillStyle = '#4CAF50';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText("發貨中心", x - 15, y);
+    ctx.fillText(vVal + "V", x - 15, y + 15);
+}
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    drawCircuit();
+    manageSpawning();
+
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    // Paths
+    const pathSeries = getSeriesPath(cw, ch);
+    const pathP1 = getParallelPath1(cw, ch);
+    const pathP2 = getParallelPath2(cw, ch);
+
+    // Trucks loop forever now, remove only if mode changes radically (handled in setMode)
+    for (let i = 0; i < trucks.length; i++) {
+        const t = trucks[i];
+        t.update();
+        
+        let path = pathSeries;
+        if (state.mode === 'parallel') {
+            if (t.pathType === 'branch1') path = pathP1;
+            else path = pathP2;
+        }
+
+        t.draw(path);
+    }
+
+    requestAnimationFrame(animate);
+}
+
+init();
+
+</script>
+</body>
+</html>

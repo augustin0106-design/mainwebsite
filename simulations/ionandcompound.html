@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化學離子大師 by駿佾師</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f9ff;
+            background-image: radial-gradient(#e0f2fe 2px, transparent 2px);
+            background-size: 32px 32px;
+        }
+
+        .card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        
+        .card-front, .card-back {
+            backface-visibility: hidden;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        .flip .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        /* Custom Scrollbar for Leaderboard */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .subscript {
+            vertical-align: sub;
+            font-size: 0.7em;
+        }
+        
+        .superscript {
+            vertical-align: super;
+            font-size: 0.7em;
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .pop-in {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        @keyframes popIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Float Animation for the Creation of Ions */
+        .float-slow {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .pulse-spark {
+            animation: pulseSpark 1.5s ease-in-out infinite;
+        }
+        @keyframes pulseSpark {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 設定區 ---
+        // 您提供的 Google Apps Script 網址
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbx4wbjmEIp_51Q3skeEslZQ_ZRleVVISI_btrQv9ZmbS6ue_qobd4KY1GN7wMjEM22K/exec";
+
+        // --- 資料設定 (基於上傳的PDF整理) ---
+        const IONS_DB = [
+            // +1 陽離子
+            { id: 'H+', symbol: 'H', charge: 1, name: '氫離子', type: 'cation', label: <>H<sup>+</sup></> },
+            { id: 'Li+', symbol: 'Li', charge: 1, name: '鋰離子', type: 'cation', label: <>Li<sup>+</sup></> },
+            { id: 'Na+', symbol: 'Na', charge: 1, name: '鈉離子', type: 'cation', label: <>Na<sup>+</sup></> },
+            { id: 'K+', symbol: 'K', charge: 1, name: '鉀離子', type: 'cation', label: <>K<sup>+</sup></> },
+            { id: 'Ag+', symbol: 'Ag', charge: 1, name: '銀離子', type: 'cation', label: <>Ag<sup>+</sup></> },
+            { id: 'NH4+', symbol: 'NH4', charge: 1, name: '銨根離子', type: 'cation', isPoly: true, label: <>NH<sub>4</sub><sup>+</sup></> },
+            { id: 'Cu+', symbol: 'Cu', charge: 1, name: '亞銅離子', type: 'cation', label: <>Cu<sup>+</sup></> },
+            
+            // +2 陽離子
+            { id: 'Mg2+', symbol: 'Mg', charge: 2, name: '鎂離子', type: 'cation', label: <>Mg<sup>2+</sup></> },
+            { id: 'Ca2+', symbol: 'Ca', charge: 2, name: '鈣離子', type: 'cation', label: <>Ca<sup>2+</sup></> },
+            { id: 'Ba2+', symbol: 'Ba', charge: 2, name: '鋇離子', type: 'cation', label: <>Ba<sup>2+</sup></> },
+            { id: 'Zn2+', symbol: 'Zn', charge: 2, name: '鋅離子', type: 'cation', label: <>Zn<sup>2+</sup></> },
+            { id: 'Pb2+', symbol: 'Pb', charge: 2, name: '鉛離子', type: 'cation', label: <>Pb<sup>2+</sup></> },
+            { id: 'Cu2+', symbol: 'Cu', charge: 2, name: '銅離子', type: 'cation', label: <>Cu<sup>2+</sup></> },
+            { id: 'Fe2+', symbol: 'Fe', charge: 2, name: '亞鐵離子', type: 'cation', label: <>Fe<sup>2+</sup></> },
+            { id: 'Hg2+', symbol: 'Hg', charge: 2, name: '汞離子', type: 'cation', label: <>Hg<sup>2+</sup></> },
+            { id: 'Sr2+', symbol: 'Sr', charge: 2, name: '鍶離子', type: 'cation', label: <>Sr<sup>2+</sup></> },
+
+            // +3, +4 陽離子
+            { id: 'Al3+', symbol: 'Al', charge: 3, name: '鋁離子', type: 'cation', label: <>Al<sup>3+</sup></> },
+            { id: 'Fe3+', symbol: 'Fe', charge: 3, name: '鐵離子', type: 'cation', label: <>Fe<sup>3+</sup></> },
+            { id: 'Cr3+', symbol: 'Cr', charge: 3, name: '鉻離子', type: 'cation', label: <>Cr<sup>3+</sup></> },
+            { id: 'Mn4+', symbol: 'Mn', charge: 4, name: '錳離子', type: 'cation', label: <>Mn<sup>4+</sup></> },
+
+            // -1 陰離子
+            { id: 'F-', symbol: 'F', charge: -1, name: '氟離子', type: 'anion', label: <>F<sup>-</sup></> },
+            { id: 'Cl-', symbol: 'Cl', charge: -1, name: '氯離子', type: 'anion', label: <>Cl<sup>-</sup></> },
+            { id: 'Br-', symbol: 'Br', charge: -1, name: '溴離子', type: 'anion', label: <>Br<sup>-</sup></> },
+            { id: 'I-', symbol: 'I', charge: -1, name: '碘離子', type: 'anion', label: <>I<sup>-</sup></> },
+            { id: 'OH-', symbol: 'OH', charge: -1, name: '氫氧根離子', type: 'anion', isPoly: true, label: <>OH<sup>-</sup></> },
+            { id: 'NO3-', symbol: 'NO3', charge: -1, name: '硝酸根離子', type: 'anion', isPoly: true, label: <>NO<sub>3</sub><sup>-</sup></> },
+            { id: 'HCO3-', symbol: 'HCO3', charge: -1, name: '碳酸氫根離子', type: 'anion', isPoly: true, label: <>HCO<sub>3</sub><sup>-</sup></> },
+            { id: 'CH3COO-', symbol: 'CH3COO', charge: -1, name: '醋酸根離子', type: 'anion', isPoly: true, label: <>CH<sub>3</sub>COO<sup>-</sup></> },
+
+            // -2 陰離子
+            { id: 'O2-', symbol: 'O', charge: -2, name: '氧離子', type: 'anion', label: <>O<sup>2-</sup></> },
+            { id: 'S2-', symbol: 'S', charge: -2, name: '硫離子', type: 'anion', label: <>S<sup>2-</sup></> },
+            { id: 'SO4 2-', symbol: 'SO4', charge: -2, name: '硫酸根離子', type: 'anion', isPoly: true, label: <>SO<sub>4</sub><sup>2-</sup></> },
+            { id: 'CO3 2-', symbol: 'CO3', charge: -2, name: '碳酸根離子', type: 'anion', isPoly: true, label: <>CO<sub>3</sub><sup>2-</sup></> },
+            { id: 'CrO4 2-', symbol: 'CrO4', charge: -2, name: '鉻酸根離子', type: 'anion', isPoly: true, label: <>CrO<sub>4</sub><sup>2-</sup></> },
+
+            // -3 陰離子
+            { id: 'PO4 3-', symbol: 'PO4', charge: -3, name: '磷酸根離子', type: 'anion', isPoly: true, label: <>PO<sub>4</sub><sup>3-</sup></> },
+        ];
+
+        // 題目產生器：化合物
+        const generateCompounds = (count = 10) => {
+            const compounds = [];
+            const cations = IONS_DB.filter(i => i.type === 'cation');
+            const anions = IONS_DB.filter(i => i.type === 'anion');
+
+            // 隨機組合，確保電荷平衡
+            while (compounds.length < count) {
+                const cat = cations[Math.floor(Math.random() * cations.length)];
+                const an = anions[Math.floor(Math.random() * anions.length)];
+                
+                // 計算最小公倍數來平衡電荷
+                const cCharge = Math.abs(cat.charge);
+                const aCharge = Math.abs(an.charge);
+                
+                let lcm = (cCharge * aCharge) / gcd(cCharge, aCharge);
+                
+                const catCount = lcm / cCharge;
+                const anCount = lcm / aCharge;
+
+                // 命名邏輯修正 (依據使用者需求：去除"根"、氫離子與離子團結合不顯示"氫")
+                let name = "";
+                // 先處理基本名稱，將"離子"去除
+                // 對於陽離子，如果是"銨根"，也要去除"根"變"銨"
+                let catNamePure = cat.name.replace("離子", "").replace("根", "");
+                let anNamePure = an.name.replace("離子", "");
+
+                if (an.id === 'OH-') {
+                    // 特殊處理氫氧根
+                    if (cat.id === 'H+') {
+                        name = "水"; 
+                    } else {
+                        // 氫氧化某
+                        name = "氫氧化" + catNamePure;
+                    }
+                } else if (anNamePure.includes("根")) {
+                    // 含氧酸根等離子團
+                    let baseAnion = anNamePure.replace("根", ""); // 去除"根"，如 碳酸、硫酸
+                    
+                    if (cat.id === 'H+') {
+                        // 規則2: 離子團 + 氫 -> 不顯示氫 (如 碳酸)
+                        name = baseAnion;
+                    } else {
+                        // 規則1: 去除根 (如 碳酸鈉)
+                        name = baseAnion + catNamePure;
+                    }
+                } else {
+                    // 單原子陰離子 (如 氯、氧) -> 某化某
+                    // 陽離子如果也是單原子則正常，如果是銨(NH4)也適用(氯化銨)
+                    name = anNamePure + "化" + catNamePure;
+                }
+
+                // 避免重複
+                if (!compounds.find(c => c.name === name)) {
+                    compounds.push({
+                        name,
+                        cation: cat,
+                        anion: an,
+                        targetCatCount: catCount,
+                        targetAnCount: anCount
+                    });
+                }
+            }
+            return compounds;
+        };
+
+        const gcd = (a, b) => {
+            return !b ? a : gcd(b, a % b);
+        };
+
+        const ENCOURAGEMENTS = ["小天才就是你!", "太神了吧!", "輕輕鬆鬆!", "化學大師!", "完美!", "不可思議!", "做得好!"];
+
+        // --- 元件：遊戲主程式 ---
+        function App() {
+            const [gameState, setGameState] = useState('start'); // start, level1, level1_end, level2, level2_end, leaderboard
+            const [user, setUser] = useState({ name: '', id: '' });
+            const [scoreData, setScoreData] = useState({ l1Time: 0, l2Time: 0, totalTime: 0 });
+            const [leaderboard, setLeaderboard] = useState([]);
+            
+            // 防止重複提交 Ref
+            const isSubmittingRef = useRef(false);
+            
+            const handleStart = (userData) => {
+                setUser(userData);
+                // 重置提交狀態
+                isSubmittingRef.current = false;
+                setGameState('level1');
+            };
+
+            const handleLevel1Complete = (time) => {
+                setScoreData(prev => ({ ...prev, l1Time: time }));
+                setGameState('level1_end');
+            };
+            
+            const handleLevel2Complete = (time) => {
+                const total = scoreData.l1Time + time;
+                setScoreData(prev => ({ ...prev, l2Time: time, totalTime: total }));
+                submitScore(total);
+            };
+
+            const submitScore = (totalTime) => {
+                // 如果正在提交中，則直接返回，防止重複
+                if (isSubmittingRef.current) return;
+                
+                isSubmittingRef.current = true;
+                setGameState('sending');
+                
+                // 使用 no-cors 模式進行上傳，避免跨域錯誤阻擋流程
+                const payload = new URLSearchParams();
+                payload.append('name', user.name + (user.id ? `(${user.id})` : ''));
+                payload.append('score', totalTime); // 分數以上傳總秒數為主，越低越好
+                payload.append('level', '2'); // 完成兩關
+                
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    body: payload,
+                    mode: 'no-cors' 
+                }).then(() => {
+                    // 上傳後嘗試讀取排行榜
+                    fetchLeaderboard();
+                }).catch(err => {
+                    console.error("Upload failed", err);
+                    alert("上傳分數失敗，請檢查網路。");
+                    // 即使失敗也嘗試讀取排行榜或顯示結束畫面
+                    setGameState('leaderboard');
+                });
+            };
+
+            const fetchLeaderboard = () => {
+                 // 讀取排行榜需要標準 CORS 支援
+                 fetch(GAS_URL)
+                .then(res => res.json())
+                .then(data => {
+                    // 假設回傳格式是 { data: [ {name, score, timestamp}, ... ] } 或是直接陣列
+                    const list = Array.isArray(data) ? data : (data.data || []);
+                    // 排序：秒數越少越好
+                    list.sort((a, b) => a.score - b.score);
+                    setLeaderboard(list);
+                    setGameState('leaderboard');
+                })
+                .catch(e => {
+                    console.log("無法讀取排行榜或格式不符", e);
+                    // 如果讀取失敗 (例如 GAS 未發布為 web app 或權限問題)，顯示本地暫存訊息
+                    setLeaderboard([]); 
+                    setGameState('leaderboard');
+                });
+            };
+            
+            // 讓首頁可以直接呼叫顯示排行榜
+            const handleShowLeaderboard = () => {
+                // 先設為載入中或其他狀態若有需要，這邊直接抓取
+                fetchLeaderboard();
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-blue-200 min-h-[600px] flex flex-col relative">
+                        {/* Header */}
+                        <div className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
+                            <h1 className="text-2xl font-bold"><i className="fa-solid fa-flask mr-2"></i>化學離子大師 by駿佾師</h1>
+                            <div className="text-sm">
+                                {user.name && <span className="mr-4">學員: {user.name}</span>}
+                                {gameState === 'level1' && <span className="bg-blue-700 px-3 py-1 rounded-full">第一關：離子配對</span>}
+                                {gameState === 'level2' && <span className="bg-blue-700 px-3 py-1 rounded-full">第二關：化合物工廠</span>}
+                            </div>
+                        </div>
+
+                        {/* Main Content Area */}
+                        <div className="flex-1 p-6 overflow-y-auto relative bg-slate-50">
+                            {gameState === 'start' && <StartScreen onStart={handleStart} onShowLeaderboard={handleShowLeaderboard} />}
+                            {gameState === 'level1' && <Level1 onComplete={handleLevel1Complete} />}
+                            {gameState === 'level1_end' && <Level1EndScreen time={scoreData.l1Time} onNext={() => setGameState('level2')} />}
+                            {gameState === 'level2' && <Level2 onComplete={handleLevel2Complete} />}
+                            {gameState === 'sending' && (
+                                <div className="flex flex-col items-center justify-center h-full">
+                                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
+                                    <p className="text-xl text-gray-600">正在上傳成績至雲端...</p>
+                                </div>
+                            )}
+                            {gameState === 'leaderboard' && <Leaderboard list={leaderboard} myScore={scoreData.totalTime} onRetry={() => window.location.reload()} />}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- Start Screen ---
+        function StartScreen({ onStart, onShowLeaderboard }) {
+            const [name, setName] = useState('');
+            const [id, setId] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (name.trim()) onStart({ name, id });
+            };
+
+            return (
+                <div className="flex flex-col items-center justify-center h-full fade-in-up">
+                    <div className="mb-8 text-center flex flex-col items-center">
+                        {/* Creation of Ions SVG Graphic */}
+                        <div className="relative w-80 h-48 mb-6 float-slow">
+                            <svg viewBox="0 0 300 160" className="w-full h-full drop-shadow-lg">
+                                {/* Left Figure: Man (Cation/Blue) */}
+                                <g className="text-blue-500 fill-current">
+                                    {/* Head */}
+                                    <circle cx="60" cy="110" r="18" />
+                                    {/* Body (Simple shape) */}
+                                    <path d="M60 128 Q40 160 20 160 H100 Q80 160 60 128" />
+                                    {/* Arm reaching out (Adam style) */}
+                                    <path d="M60 135 Q80 100 135 85" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                                    {/* Plus Sign */}
+                                    <text x="30" y="90" fontSize="30" fontWeight="bold" fill="#2563EB">+</text>
+                                </g>
+
+                                {/* Right Figure: Woman (Anion/Pink) */}
+                                <g className="text-pink-400 fill-current">
+                                    {/* Head */}
+                                    <circle cx="240" cy="60" r="18" />
+                                    {/* Body (Dress shape) */}
+                                    <path d="M240 78 L210 160 H270 L240 78" />
+                                    {/* Arm reaching down (God style) */}
+                                    <path d="M240 85 Q220 100 165 85" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                                    {/* Minus Sign */}
+                                    <text x="260" y="50" fontSize="30" fontWeight="bold" fill="#EC4899">-</text>
+                                </g>
+
+                                {/* Spark / Connection Point */}
+                                <g className="pulse-spark">
+                                    <path d="M150 75 L155 85 L165 85 L157 92 L160 102 L150 95 L140 102 L143 92 L135 85 L145 85 Z" fill="#FBBF24" />
+                                    <circle cx="150" cy="85" r="5" fill="#FFFF00" opacity="0.8" />
+                                </g>
+                            </svg>
+                        </div>
+
+                        <h2 className="text-3xl font-bold text-gray-800">準備好挑戰了嗎？</h2>
+                        <p className="text-gray-500 mt-2">測驗你的離子知識與化合物組裝能力</p>
+                    </div>
+                    <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">暱稱 / 姓名</label>
+                            <input 
+                                type="text" 
+                                required
+                                className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition"
+                                placeholder="請輸入名字"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">班級座號 (選填)</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition"
+                                placeholder="例如: 901-05"
+                                value={id}
+                                onChange={(e) => setId(e.target.value)}
+                            />
+                        </div>
+                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transform active:scale-95 transition shadow-lg">
+                            開始挑戰
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={onShowLeaderboard}
+                            className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 px-6 rounded-xl transform active:scale-95 transition shadow-lg mt-3 flex items-center justify-center"
+                        >
+                            <i className="fa-solid fa-trophy mr-2"></i>查看排行榜
+                        </button>
+                    </form>
+                </div>
+            );
+        }
+
+        // --- Level 1: Ion Matching ---
+        function Level1({ onComplete }) {
+            const [items, setItems] = useState([]);
+            const [selected, setSelected] = useState([]); // [item1, item2]
+            const [matchedIds, setMatchedIds] = useState([]);
+            const [startTime] = useState(Date.now());
+            const [message, setMessage] = useState(null);
+            
+            // 初始化題目 (選 6 種離子，共 12 張卡片)
+            useEffect(() => {
+                const randomIons = [...IONS_DB].sort(() => 0.5 - Math.random()).slice(0, 6);
+                
+                // 建立卡片對：一個顯示代號，一個顯示中文
+                let deck = [];
+                randomIons.forEach(ion => {
+                    deck.push({ id: ion.id, content: ion.label, type: 'symbol', matchId: ion.id, uid: Math.random() });
+                    deck.push({ id: ion.id, content: ion.name, type: 'name', matchId: ion.id, uid: Math.random() });
+                });
+                
+                // 洗牌
+                deck.sort(() => 0.5 - Math.random());
+                setItems(deck);
+            }, []);
+
+            const handleCardClick = (item) => {
+                if (matchedIds.includes(item.uid) || selected.find(s => s.uid === item.uid) || selected.length >= 2) return;
+
+                const newSelected = [...selected, item];
+                setSelected(newSelected);
+
+                if (newSelected.length === 2) {
+                    if (newSelected[0].matchId === newSelected[1].matchId) {
+                        // 配對成功
+                        setMatchedIds(prev => [...prev, newSelected[0].uid, newSelected[1].uid]);
+                        setSelected([]);
+                        showEncouragement();
+                        
+                        // 檢查是否全部完成
+                        if (matchedIds.length + 2 === items.length) {
+                            setTimeout(() => {
+                                const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+                                onComplete(timeSpent);
+                            }, 1000);
+                        }
+                    } else {
+                        // 配對失敗
+                        setTimeout(() => setSelected([]), 1000);
+                    }
+                }
+            };
+
+            const showEncouragement = () => {
+                const text = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
+                setMessage(text);
+                setTimeout(() => setMessage(null), 1500);
+            };
+
+            return (
+                <div className="h-full flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="text-gray-600">配對進度: {(matchedIds.length / 2)} / {items.length / 2}</div>
+                        <div className="text-xl font-bold text-blue-600">
+                            {Math.floor((Date.now() - startTime) / 1000)}s (計時中)
+                        </div>
+                    </div>
+
+                    {message && (
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
+                            <div className="bg-yellow-400 text-red-700 text-3xl font-black px-8 py-4 rounded-full shadow-2xl pop-in border-4 border-white transform rotate-[-5deg]">
+                                {message}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 flex-1">
+                        {items.map(item => {
+                            const isFlipped = selected.find(s => s.uid === item.uid) || matchedIds.includes(item.uid);
+                            const isMatched = matchedIds.includes(item.uid);
+                            return (
+                                <div 
+                                    key={item.uid} 
+                                    onClick={() => handleCardClick(item)}
+                                    className={`relative cursor-pointer h-32 w-full perspective-1000 group ${isMatched ? 'opacity-0 pointer-events-none transition-opacity duration-500' : ''}`}
+                                >
+                                    <div className={`w-full h-full relative transition-all duration-300 transform ${isFlipped ? 'bg-white border-blue-500' : 'bg-blue-500 hover:bg-blue-600'} rounded-xl shadow-lg border-4 border-transparent flex items-center justify-center text-xl font-bold`}>
+                                        {isFlipped ? (
+                                            <div className="text-gray-800 text-center p-2 break-words leading-tight">{item.content}</div>
+                                        ) : (
+                                            <div className="text-white text-4xl"><i className="fa-solid fa-question"></i></div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+
+        function Level1EndScreen({ time, onNext }) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full fade-in-up">
+                    <i className="fa-solid fa-trophy text-6xl text-yellow-400 mb-6 animate-bounce"></i>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-2">第一關完成！</h2>
+                    <p className="text-xl text-gray-600 mb-8">耗時：<span className="font-mono font-bold text-blue-600">{time}</span> 秒</p>
+                    <button onClick={onNext} className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-10 rounded-xl shadow-lg transform active:scale-95 transition text-xl">
+                        進入第二關
+                    </button>
+                </div>
+            );
+        }
+
+        // --- Level 2: Compound Builder ---
+        function Level2({ onComplete }) {
+            const [questions, setQuestions] = useState([]);
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [selectedCation, setSelectedCation] = useState(null);
+            const [selectedAnion, setSelectedAnion] = useState(null);
+            const [cationCount, setCationCount] = useState(1);
+            const [anionCount, setAnionCount] = useState(1);
+            const [feedback, setFeedback] = useState(null); // { cation: bool, anion: bool, count: bool }
+            const [startTime] = useState(Date.now());
+            const [correctCount, setCorrectCount] = useState(0);
+            
+            // 防止答對後的重複點擊
+            const [isProcessing, setIsProcessing] = useState(false);
+
+            // 初始化題目 (10題)
+            useEffect(() => {
+                const q = generateCompounds(10);
+                setQuestions(q);
+            }, []);
+
+            const currentQ = questions[currentIndex];
+
+            const handleSubmit = () => {
+                if (!selectedCation || !selectedAnion) return;
+                // 如果正在處理過關動畫，禁止重複點擊
+                if (isProcessing) return;
+
+                const isCationCorrect = selectedCation.id === currentQ.cation.id;
+                const isAnionCorrect = selectedAnion.id === currentQ.anion.id;
+                const isCountCorrect = (cationCount === currentQ.targetCatCount) && (anionCount === currentQ.targetAnCount);
+
+                setFeedback({
+                    cation: isCationCorrect,
+                    anion: isAnionCorrect,
+                    cationCount: cationCount === currentQ.targetCatCount,
+                    anionCount: anionCount === currentQ.targetAnCount
+                });
+
+                if (isCationCorrect && isAnionCorrect && isCountCorrect) {
+                    // Correct! 鎖定按鈕
+                    setIsProcessing(true);
+                    
+                    setTimeout(() => {
+                        if (currentIndex + 1 >= questions.length) {
+                            const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+                            onComplete(timeSpent);
+                            // 注意：這裡不解除 isProcessing，因為馬上要跳轉了，防止跳轉前被點
+                        } else {
+                            // Next question
+                            setCorrectCount(p => p + 1);
+                            setCurrentIndex(p => p + 1);
+                            resetSelection();
+                            setIsProcessing(false); // 解除鎖定
+                        }
+                    }, 1000);
+                }
+            };
+
+            const resetSelection = () => {
+                setSelectedCation(null);
+                setSelectedAnion(null);
+                setCationCount(1);
+                setAnionCount(1);
+                setFeedback(null);
+            };
+
+            const adjustCount = (type, delta) => {
+                if (type === 'cation') {
+                    setCationCount(Math.max(1, Math.min(5, cationCount + delta)));
+                } else {
+                    setAnionCount(Math.max(1, Math.min(5, anionCount + delta)));
+                }
+            };
+
+            if (!currentQ) return <div>Loading...</div>;
+
+            return (
+                <div className="h-full flex flex-col space-y-4">
+                    <div className="flex justify-between items-center bg-blue-50 p-2 rounded-lg">
+                        <span className="font-bold text-gray-700">題目 {currentIndex + 1} / {questions.length}</span>
+                        <span className="text-blue-600 font-bold"><i className="fa-regular fa-clock"></i> {Math.floor((Date.now() - startTime) / 1000)}s</span>
+                    </div>
+
+                    {/* Question Display */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm text-center border border-gray-200">
+                        <p className="text-gray-500 text-sm mb-1">請組合出以下化合物</p>
+                        <h2 className="text-4xl font-black text-gray-800 tracking-wider mb-2">{currentQ.name}</h2>
+                    </div>
+
+                    {/* Answer Area */}
+                    <div className="flex justify-center items-end space-x-4 my-4 h-32">
+                        {/* Cation Box */}
+                        <div className={`relative p-4 border-4 rounded-xl w-32 h-32 flex items-center justify-center transition-all bg-white
+                            ${feedback ? (feedback.cation ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : 'border-dashed border-gray-300'}`}>
+                            {selectedCation ? (
+                                <div className="text-3xl font-serif">{selectedCation.label}</div>
+                            ) : (
+                                <span className="text-gray-400 text-sm">選擇陽離子</span>
+                            )}
+                            
+                            {/* Subscript Controls */}
+                            {selectedCation && (
+                                <div className={`absolute -bottom-10 right-0 flex flex-col items-center bg-white shadow rounded-lg border p-1 scale-90
+                                     ${feedback && !feedback.cationCount ? 'border-red-500 ring-2 ring-red-200' : ''}
+                                `}>
+                                    <button onClick={() => adjustCount('cation', 1)} className="text-gray-500 hover:text-blue-500 px-2"><i className="fa-solid fa-caret-up"></i></button>
+                                    <span className="font-bold text-lg leading-none">{cationCount}</span>
+                                    <button onClick={() => adjustCount('cation', -1)} className="text-gray-500 hover:text-blue-500 px-2"><i className="fa-solid fa-caret-down"></i></button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="pb-12 text-gray-400 text-2xl">+</div>
+
+                        {/* Anion Box */}
+                        <div className={`relative p-4 border-4 rounded-xl w-32 h-32 flex items-center justify-center transition-all bg-white
+                            ${feedback ? (feedback.anion ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : 'border-dashed border-gray-300'}`}>
+                            {selectedAnion ? (
+                                <div className="text-3xl font-serif">{selectedAnion.label}</div>
+                            ) : (
+                                <span className="text-gray-400 text-sm">選擇陰離子</span>
+                            )}
+
+                             {/* Subscript Controls */}
+                             {selectedAnion && (
+                                <div className={`absolute -bottom-10 right-0 flex flex-col items-center bg-white shadow rounded-lg border p-1 scale-90
+                                     ${feedback && !feedback.anionCount ? 'border-red-500 ring-2 ring-red-200' : ''}
+                                `}>
+                                    <button onClick={() => adjustCount('anion', 1)} className="text-gray-500 hover:text-blue-500 px-2"><i className="fa-solid fa-caret-up"></i></button>
+                                    <span className="font-bold text-lg leading-none">{anionCount}</span>
+                                    <button onClick={() => adjustCount('anion', -1)} className="text-gray-500 hover:text-blue-500 px-2"><i className="fa-solid fa-caret-down"></i></button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Submit Button */}
+                    <div className="flex justify-center pb-2">
+                         <button 
+                            onClick={handleSubmit}
+                            disabled={!selectedCation || !selectedAnion || isProcessing}
+                            className={`px-8 py-2 rounded-full font-bold text-white shadow-lg transition-all
+                                ${(!selectedCation || !selectedAnion || isProcessing) ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 active:scale-95'}
+                            `}
+                        >
+                            {isProcessing ? '驗證中...' : '送出答案'}
+                        </button>
+                    </div>
+
+                    {/* Selection Area - Tabs (UPDATED: Wrap and Scroll) */}
+                    <div className="flex-1 bg-white border-t border-gray-200 p-2 overflow-y-auto flex flex-col">
+                        <div className="flex space-x-2 mb-2">
+                             <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-xs font-bold">陽離子區</span>
+                        </div>
+                        <div className="pb-2">
+                            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                {IONS_DB.filter(i => i.type === 'cation').map(ion => (
+                                    <button 
+                                        key={ion.id}
+                                        onClick={() => { setSelectedCation(ion); setFeedback(null); }}
+                                        className={`flex-shrink-0 w-16 h-16 rounded-lg border-2 flex items-center justify-center font-serif text-lg transition-colors
+                                            ${selectedCation?.id === ion.id ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-gray-200 hover:border-pink-300 text-gray-700'}
+                                        `}
+                                    >
+                                        {ion.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-2 mb-2 mt-2">
+                             <span className="bg-cyan-100 text-cyan-700 px-2 py-1 rounded text-xs font-bold">陰離子區</span>
+                        </div>
+                        <div className="pb-2">
+                            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                {IONS_DB.filter(i => i.type === 'anion').map(ion => (
+                                    <button 
+                                        key={ion.id}
+                                        onClick={() => { setSelectedAnion(ion); setFeedback(null); }}
+                                        className={`flex-shrink-0 w-16 h-16 rounded-lg border-2 flex items-center justify-center font-serif text-lg transition-colors
+                                            ${selectedAnion?.id === ion.id ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 hover:border-cyan-300 text-gray-700'}
+                                        `}
+                                    >
+                                        {ion.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- Leaderboard ---
+        function Leaderboard({ list, myScore, onRetry }) {
+            return (
+                <div className="flex flex-col h-full fade-in-up">
+                    <div className="text-center mb-6">
+                        <i className="fa-solid fa-crown text-5xl text-yellow-500 mb-2"></i>
+                        <h2 className="text-3xl font-bold text-gray-800">排行榜</h2>
+                        {myScore > 0 && <p className="text-gray-600">你的總成績: <span className="font-bold text-blue-600 text-xl">{myScore}</span> 秒</p>}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto bg-white rounded-xl shadow-inner p-4 mb-4 border border-gray-200">
+                        <table className="w-full text-left">
+                            <thead className="text-gray-500 border-b">
+                                <tr>
+                                    <th className="pb-2">排名</th>
+                                    <th className="pb-2">名字</th>
+                                    <th className="pb-2 text-right">時間</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {list.map((item, index) => (
+                                    <tr key={index} className={`border-b last:border-0 ${index < 3 ? 'font-bold' : 'text-gray-600'}`}>
+                                        <td className="py-3 pl-2">
+                                            {index === 0 && <i className="fa-solid fa-medal text-yellow-400 mr-1"></i>}
+                                            {index === 1 && <i className="fa-solid fa-medal text-gray-400 mr-1"></i>}
+                                            {index === 2 && <i className="fa-solid fa-medal text-orange-400 mr-1"></i>}
+                                            {index + 1}
+                                        </td>
+                                        <td className="py-3">{item.name}</td>
+                                        <td className="py-3 text-right font-mono">{item.score}s</td>
+                                    </tr>
+                                ))}
+                                {list.length === 0 && (
+                                    <tr><td colSpan="3" className="text-center py-8 text-gray-400">目前還沒有資料</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button onClick={onRetry} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition">
+                        {myScore > 0 ? '再玩一次' : '回到首頁'}
+                    </button>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+

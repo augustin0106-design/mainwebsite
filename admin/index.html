@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gogoland 本地後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://unpkg.com/lucide@latest" defer></script>
+  <script src="admin.js" defer></script>
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="login-card" id="login-card">
+      <div class="mark">Go</div>
+      <h1>Gogoland 本地後台</h1>
+      <p>這個工具只適合在自己的電腦使用。登入後可選擇本地 repo 資料夾，上傳新的單檔 HTML 模擬並更新清單。</p>
+      <form id="login-form">
+        <label>
+          後台密碼
+          <input id="password-input" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">登入</button>
+      </form>
+      <p class="hint">預設密碼：gogoland-admin。正式使用前請在 <code>admin/admin.js</code> 換成你的密碼雜湊。</p>
+    </section>
+
+    <section class="dashboard" id="dashboard" hidden>
+      <header>
+        <div>
+          <p class="eyebrow">Local manager</p>
+          <h1>模擬程式上架</h1>
+        </div>
+        <button id="pick-root-button" type="button">
+          <i data-lucide="folder-open"></i>
+          選擇網站資料夾
+        </button>
+      </header>
+
+      <div class="notice" id="support-notice" hidden>
+        你的瀏覽器不支援本地資料夾寫入。請使用 Chrome 或 Edge 開啟這個後台。
+      </div>
+
+      <div class="grid">
+        <form class="panel" id="upload-form">
+          <h2>新增 HTML 模擬</h2>
+          <label>
+            分類
+            <select id="category-input" required></select>
+          </label>
+          <label>
+            標題
+            <input id="title-input" type="text" required placeholder="例如：光的折射挑戰">
+          </label>
+          <label>
+            簡介
+            <textarea id="description-input" rows="3" required placeholder="一句話說明這個模擬能學什麼"></textarea>
+          </label>
+          <label>
+            關鍵字
+            <input id="tags-input" type="text" placeholder="用逗號分隔，例如：光學, 折射, 實驗">
+          </label>
+          <label>
+            HTML 檔
+            <input id="file-input" type="file" accept=".html,text/html" required>
+          </label>
+          <button type="submit">
+            <i data-lucide="upload"></i>
+            上架到本地 repo
+          </button>
+        </form>
+
+        <section class="panel">
+          <h2>目前清單</h2>
+          <div class="sim-list" id="sim-list"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

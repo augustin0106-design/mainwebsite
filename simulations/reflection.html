@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一段考後．理化心裡話 by駿佾老師</title>
+  
+  <!-- 引入 React 和 Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- 引入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 引入 Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Kiwi Maru', serif;
+      background-color: #FFF9F2;
+    }
+    .font-heading {
+      font-family: 'Nunito', sans-serif;
+    }
+    
+    /* 自定義捲軸 */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #FFF9F2; 
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #FDBA74; 
+      border-radius: 10px;
+    }
+
+    /* 範圍滑桿樣式優化 */
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #F97316;
+      cursor: pointer;
+      margin-top: -6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: #FED7AA;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- 圖示組件 (SVG) ---
+    const IconWrapper = ({ children, className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+
+    const Icons = {
+      Send: (props) => <IconWrapper {...props}><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></IconWrapper>,
+      Loader2: (props) => <IconWrapper {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></IconWrapper>,
+      AlertCircle: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></IconWrapper>,
+      Heart: (props) => <IconWrapper {...props}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></IconWrapper>,
+      Sun: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></IconWrapper>,
+      Sprout: (props) => <IconWrapper {...props}><path d="M7 20h10"></path><path d="M10 20c5.5-2.5.8-6.4 3-10"></path><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.2.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"></path><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1.7-1.3 2.9-4 3.1-6.2-2 .9-4 1.8-6.3 3.6z"></path></IconWrapper>,
+      Coffee: (props) => <IconWrapper {...props}><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></IconWrapper>,
+      BookOpen: (props) => <IconWrapper {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></IconWrapper>,
+      Smile: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></IconWrapper>,
+      Frown: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></IconWrapper>,
+      Target: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></IconWrapper>,
+      Feather: (props) => <IconWrapper {...props}><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></IconWrapper>,
+      Sparkles: (props) => <IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></IconWrapper>,
+      Brain: (props) => <IconWrapper {...props}><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></IconWrapper>,
+      Lightbulb: (props) => <IconWrapper {...props}><line x1="9" y1="18" x2="15" y2="18"></line><line x1="10" y1="22" x2="14" y2="22"></line><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 9.5 6 4.65 4.65 0 0 0 2.5 11.5c0 1.07.46 2.07 1.41 2.5.76.76 1.23 1.52 1.41 2.5"></path></IconWrapper>
+    };
+
+    // --- 溫馨插圖組件 ---
+    const SunIllustration = () => (
+      <svg viewBox="0 0 200 120" className="w-full h-32 md:h-40 mx-auto mb-4">
+        <circle cx="100" cy="100" r="40" fill="#FDBA74" className="animate-pulse" opacity="0.8" />
+        <circle cx="100" cy="100" r="25" fill="#F97316" />
+        <path d="M40 100 Q70 70 100 100 T160 100" fill="none" stroke="#FFF7ED" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="150" cy="40" r="15" fill="#FFF7ED" opacity="0.6" />
+        <circle cx="165" cy="50" r="20" fill="#FFF7ED" opacity="0.6" />
+      </svg>
+    );
+
+    const LetterIllustration = () => (
+      <svg viewBox="0 0 200 150" className="w-48 h-48 mx-auto mb-6">
+        <rect x="40" y="40" width="120" height="80" rx="10" fill="#FFF" stroke="#FB923C" strokeWidth="3"/>
+        <path d="M40 40 L100 90 L160 40" fill="none" stroke="#FB923C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="100" cy="90" r="18" fill="#F43F5E" />
+        <path d="M92 92 L100 100 L108 84" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        <g className="animate-bounce">
+           <path d="M100 20 L100 30" stroke="#FDBA74" strokeWidth="3" strokeLinecap="round"/>
+           <path d="M80 25 L85 32" stroke="#FDBA74" strokeWidth="3" strokeLinecap="round"/>
+           <path d="M120 25 L115 32" stroke="#FDBA74" strokeWidth="3" strokeLinecap="round"/>
+        </g>
+      </svg>
+    );
+
+    // --- 理論小卡組件 ---
+    const InsightCard = ({ title, icon: Icon, colorClass, theory, description }) => (
+      <div className={`bg-white rounded-2xl p-6 border-l-4 ${colorClass} shadow-sm hover:shadow-md transition-all`}>
+        <div className="flex items-start gap-4">
+          <div className={`p-3 rounded-xl ${colorClass.replace('border-', 'bg-').replace('500', '100')} text-stone-600`}>
+            <Icon className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-stone-700 mb-1">{title}</h3>
+            <span className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2 block">{theory}</span>
+            <p className="text-stone-600 text-sm leading-relaxed">{description}</p>
+          </div>
+        </div>
+      </div>
+    );
+
+    // --- 主程式 ---
+    function ExamReflectionApp() {
+      // ▼▼▼ 請在這裡填入您的 Google Apps Script 網址 ▼▼▼
+      const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyOF8T6llEfTWswbqKg1z7oP9Uo-2g6k40sKZJUvvmHi6_RH_--UylmPxg6h7nERP-L5A/exec";
+      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+      const [loading, setLoading] = useState(false);
+      const [submitted, setSubmitted] = useState(false);
+      const [aiResponse, setAiResponse] = useState(null);
+      const [error, setError] = useState("");
+
+      const [formData, setFormData] = useState({
+        name: "",
+        score: 5,
+        emotions: [],
+        emotionMessage: "",
+        effortLevel: "medium",
+        satisfactionLevel: "medium",
+        motivation: "",
+        errors: {
+          external_scope: 0,
+          external_confusing: 0,
+          external_wrong_key: 0,
+          internal_careless: 0,
+          internal_concept: 0,
+          internal_misread: 0,
+          internal_template: 0,
+          internal_forgot: 0,
+          internal_other: 0
+        },
+        strategyPlus1: "",
+        strategyPlus2: "",
+        strategyMinus1: ""
+      });
+
+      const emotionsList = [
+        { label: "緊張", icon: "😣" }, { label: "失望", icon: "😞" }, 
+        { label: "生氣", icon: "😡" }, { label: "羞愧", icon: "😳" }, 
+        { label: "疲憊", icon: "😫" }, { label: "舒適", icon: "😌" }, 
+        { label: "驕傲", icon: "😤" }, { label: "有趣", icon: "🤩" }, 
+        { label: "鬆一口氣", icon: "😮‍💨" }
+      ];
+
+      const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+      };
+
+      const handleErrorCountChange = (key, value) => {
+        setFormData(prev => ({
+          ...prev,
+          errors: { ...prev.errors, [key]: parseInt(value) || 0 }
+        }));
+      };
+
+      const toggleEmotion = (emotionLabel) => {
+        setFormData(prev => {
+          const current = prev.emotions;
+          if (current.includes(emotionLabel)) {
+            return { ...prev, emotions: current.filter(e => e !== emotionLabel) };
+          } else {
+            return { ...prev, emotions: [...current, emotionLabel] };
+          }
+        });
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (GAS_WEB_APP_URL.includes("請在此填入")) {
+            setError("老師還沒設定好連結網址喔！請提醒老師設定。");
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+
+        try {
+          const response = await fetch(GAS_WEB_APP_URL, {
+            method: "POST",
+            body: JSON.stringify(formData)
+          });
+
+          const data = await response.json();
+
+          if (data.status === 'success') {
+            setSubmitted(true);
+            setAiResponse(data.aiAnalysis);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } else {
+            throw new Error(data.message || "發生未知錯誤");
+          }
+        } catch (err) {
+          console.error(err);
+          setError("連線失敗，請檢查網路狀況，再試一次看看！");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // --- 結果顯示頁面 ---
+      if (submitted && aiResponse) {
+        return (
+          <div className="min-h-screen bg-[#FFF9F2] p-4 md:p-8 font-sans flex justify-center items-start">
+            <div className="max-w-4xl w-full space-y-8">
+              
+              {/* 卡片 1: AI 回信 */}
+              <div className="bg-white rounded-[2rem] shadow-xl border-4 border-orange-100 overflow-hidden">
+                <div className="bg-gradient-to-b from-orange-50 to-white p-8 text-center">
+                  <LetterIllustration />
+                  <h1 className="text-3xl font-bold text-orange-800 mb-2 tracking-wide">
+                    AI 老師的回信
+                  </h1>
+                  <p className="text-orange-600 font-medium bg-orange-100 inline-block px-4 py-1 rounded-full">
+                    給親愛的 {formData.name}
+                  </p>
+                </div>
+                
+                <div className="p-8 pt-0 space-y-8">
+                  <div className="bg-orange-50/50 p-8 rounded-3xl border border-orange-100 relative">
+                    <div className="absolute -top-4 left-6 bg-white px-4 py-1.5 rounded-full text-orange-500 font-bold text-sm shadow-sm border border-orange-100 flex items-center gap-2">
+                      <Icons.Sparkles className="w-4 h-4" /> 專屬分析與建議
+                    </div>
+                    <div className="prose prose-orange max-w-none whitespace-pre-line text-stone-600 leading-8 text-lg font-medium">
+                      {aiResponse}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 卡片 2: 教育學理依據 (新增的部分) */}
+              <div className="bg-[#FFF9F2]">
+                <div className="flex items-center gap-3 mb-6 px-4">
+                  <Icons.Brain className="w-8 h-8 text-stone-400" />
+                  <h2 className="text-2xl font-bold text-stone-600">這一刻，大腦發生了什麼事？</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InsightCard 
+                    title="為什麼要問情緒？" 
+                    icon={Icons.Heart}
+                    colorClass="border-rose-400"
+                    theory="情緒功能論 (Functionalist Theory)"
+                    description="情緒不是雜訊，而是大腦給你的重要情報。例如「焦慮」常代表準備不足；「生氣」可能代表遇到阻礙。寫下來，能將這些訊號轉化為行動力。"
+                  />
+                  <InsightCard 
+                    title="努力 vs 結果的秘密" 
+                    icon={Icons.Target}
+                    colorClass="border-amber-400"
+                    theory="歸因理論 (Attribution Theory)"
+                    description="心理學家 Weiner 發現，將成敗歸因於「可控制因素」（如：努力方法）而非「不可控因素」（如：運氣天賦），是建立成長型思維的關鍵。"
+                  />
+                  <InsightCard 
+                    title="為什麼要分析動機？" 
+                    icon={Icons.Lightbulb}
+                    colorClass="border-blue-400"
+                    theory="自我決定論 (Self-Determination Theory)"
+                    description="釐清是為了「外在獎賞」還是「內在興趣」讀書很重要。內在動機（覺得有趣、有意義）能帶來更長久的學習續航力。"
+                  />
+                  <InsightCard 
+                    title="錯題分析與策略" 
+                    icon={Icons.Sprout}
+                    colorClass="border-green-400"
+                    theory="後設認知 (Metacognition)"
+                    description="優秀的學習者不只會「學」，還會「監控自己怎麼學」。分析是粗心還是概念不清，就是在大腦中建立檢查機制，避免下次犯同樣的錯。"
+                  />
+                </div>
+              </div>
+
+              {/* 底部按鈕 */}
+              <div className="text-center pb-8 pt-4">
+                <button 
+                  onClick={() => {
+                      setSubmitted(false);
+                      setAiResponse(null);
+                      setFormData({...formData, name: ""});
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="group px-8 py-3 bg-stone-700 hover:bg-stone-800 text-white rounded-full font-bold transition-all transform hover:scale-105 shadow-lg active:scale-95 flex items-center gap-2 mx-auto"
+                >
+                  <Icons.Feather className="w-4 h-4 group-hover:rotate-12 transition-transform"/>
+                  填寫下一份
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      }
+
+      // --- 表單填寫頁面 ---
+      return (
+        <div className="min-h-screen bg-[#FFF9F2] py-10 px-4 font-sans text-stone-600">
+          <div className="max-w-2xl mx-auto">
+            
+            {/* Header Card */}
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border-b-8 border-orange-200 mb-8 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-300 via-rose-300 to-amber-300"></div>
+              <SunIllustration />
+              <h1 className="text-3xl font-bold text-stone-700 tracking-wide mb-2">
+                一段考後．理化心裡話
+              </h1>
+              <p className="text-stone-500 text-lg flex items-center justify-center gap-2">
+                <Icons.Coffee className="w-5 h-5 text-orange-400" />
+                找個舒服的時間，誠實面對自己
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Section 1: 關於你 */}
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-orange-50 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-orange-100 p-2.5 rounded-2xl text-orange-500">
+                    <Icons.Smile className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-700">關於你</h2>
+                </div>
+                
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-stone-600 font-bold mb-2 ml-1">你的名字</label>
+                    <input 
+                      required
+                      type="text" 
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-orange-300 focus:ring-0 px-4 py-3 text-lg outline-none transition-colors placeholder-stone-300"
+                      placeholder="請輸入姓名"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-stone-600 font-bold mb-3 ml-1">這次表現滿意度 (1~10分)</label>
+                    <div className="bg-stone-50 rounded-3xl p-6 border-2 border-stone-100">
+                      <div className="flex items-center gap-4 mb-2">
+                        <span className="text-sm font-bold text-stone-400">1</span>
+                        <input 
+                          type="range" 
+                          min="1" 
+                          max="10" 
+                          name="score"
+                          value={formData.score}
+                          onChange={handleInputChange}
+                          className="w-full h-3 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                        />
+                        <span className="text-sm font-bold text-stone-400">10</span>
+                      </div>
+                      <div className="flex justify-center mt-2">
+                        <span className="bg-white text-orange-500 px-6 py-1.5 rounded-full text-xl font-bold shadow-sm border border-orange-100">
+                          {formData.score} 分
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: 情緒覺察 */}
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-orange-50 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-rose-100 p-2.5 rounded-2xl text-rose-500">
+                    <Icons.Heart className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-700">情緒掃描</h2>
+                </div>
+
+                <p className="mb-4 text-stone-500 ml-1">看著考卷，當下最強烈的感覺是？(可多選)</p>
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {emotionsList.map(emotion => (
+                    <button
+                      key={emotion.label}
+                      type="button"
+                      onClick={() => toggleEmotion(emotion.label)}
+                      className={`px-4 py-3 rounded-2xl text-base font-bold transition-all duration-200 border-2 flex items-center gap-2 ${
+                        formData.emotions.includes(emotion.label)
+                          ? 'bg-rose-400 border-rose-400 text-white shadow-md transform -translate-y-1'
+                          : 'bg-white border-stone-100 text-stone-500 hover:border-rose-200 hover:bg-rose-50'
+                      }`}
+                    >
+                      <span className="text-lg">{emotion.icon}</span>
+                      {emotion.label}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="relative">
+                  <div className="absolute -top-3 left-3 bg-white px-2 text-xs text-rose-400 font-bold">我想... 情緒想提醒我的訊息是</div>
+                  <textarea 
+                    name="emotionMessage"
+                    value={formData.emotionMessage}
+                    onChange={handleInputChange}
+                    rows="2"
+                    className="w-full bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-rose-300 focus:ring-0 px-4 py-4 text-base outline-none transition-colors resize-none placeholder-stone-300"
+                    placeholder="例如：雖然有點失望，但這代表我其實很在乎..."
+                  />
+                </div>
+              </div>
+
+              {/* Section 3: 定位與動機 */}
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-orange-50 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-amber-100 p-2.5 rounded-2xl text-amber-500">
+                    <Icons.Target className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-700">定位與動機</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-amber-50 p-4 rounded-3xl">
+                    <label className="block text-sm font-bold text-amber-800 mb-2">準備過程努力程度</label>
+                    <select 
+                      name="effortLevel" 
+                      value={formData.effortLevel} 
+                      onChange={handleInputChange}
+                      className="w-full bg-white border-0 text-stone-700 py-3 px-4 rounded-xl focus:ring-2 focus:ring-amber-200 shadow-sm cursor-pointer"
+                    >
+                      <option value="low">☁️ 努力不足</option>
+                      <option value="medium">🌱 普通尚可</option>
+                      <option value="high">🌳 準備充分</option>
+                    </select>
+                  </div>
+                  <div className="bg-amber-50 p-4 rounded-3xl">
+                    <label className="block text-sm font-bold text-amber-800 mb-2">對結果滿意程度</label>
+                    <select 
+                      name="satisfactionLevel" 
+                      value={formData.satisfactionLevel} 
+                      onChange={handleInputChange}
+                      className="w-full bg-white border-0 text-stone-700 py-3 px-4 rounded-xl focus:ring-2 focus:ring-amber-200 shadow-sm cursor-pointer"
+                    >
+                      <option value="low">⛈️ 結果不滿意</option>
+                      <option value="medium">🌥️ 尚可接受</option>
+                      <option value="high">☀️ 結果滿意</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="relative pt-2">
+                  <label className="block text-stone-600 font-bold mb-2 ml-1">最核心的讀書動機是？</label>
+                  <input 
+                    type="text" 
+                    name="motivation"
+                    value={formData.motivation}
+                    onChange={handleInputChange}
+                    className="w-full bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-amber-300 focus:ring-0 px-4 py-3 text-base outline-none transition-colors placeholder-stone-300"
+                    placeholder="例如：不想輸給誰、為了獎學金、單純覺得有趣..."
+                  />
+                </div>
+              </div>
+
+              {/* Section 4: 錯誤分析 */}
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-orange-50 hover:shadow-md transition-shadow">
+                 <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-red-100 p-2.5 rounded-2xl text-red-500">
+                    <Icons.Frown className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-700">為什麼失分？</h2>
+                </div>
+                <p className="text-stone-500 mb-6 ml-1 text-sm">誠實記錄錯題數，數據會幫我們找到盲點：</p>
+                
+                <div className="space-y-6">
+                  {/* 外在歸因 */}
+                  <div className="bg-stone-50/80 p-5 rounded-3xl">
+                    <h3 className="font-bold text-stone-400 text-sm mb-3 uppercase tracking-wider pl-1">外部因素</h3>
+                    <div className="space-y-3">
+                      {[
+                        { k: 'external_scope', l: '超出範圍' },
+                        { k: 'external_confusing', l: '題意不清' },
+                        { k: 'external_wrong_key', l: '答案有誤' }
+                      ].map(item => (
+                        <div key={item.k} className="flex items-center justify-between bg-white p-2 pl-4 rounded-2xl border border-stone-100">
+                          <span className="text-stone-600 font-medium">{item.l}</span>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number" 
+                              min="0"
+                              value={formData.errors[item.k] === 0 ? '' : formData.errors[item.k]}
+                              placeholder="0"
+                              onChange={(e) => handleErrorCountChange(item.k, e.target.value)}
+                              className="w-14 h-10 text-center bg-stone-100 rounded-xl focus:bg-orange-50 focus:ring-2 focus:ring-orange-200 outline-none font-bold text-lg text-stone-700 transition-all placeholder-stone-300"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 內在歸因 */}
+                  <div className="bg-red-50/50 p-5 rounded-3xl border border-red-100">
+                    <h3 className="font-bold text-red-400 text-sm mb-3 uppercase tracking-wider pl-1">內部因素 (關鍵!)</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                       {[
+                        { k: 'internal_careless', l: '👀 粗心 (抄錯/單位)' },
+                        { k: 'internal_concept', l: '🧠 概念不清 (定義)' },
+                        { k: 'internal_misread', l: '📖 讀錯題意' },
+                        { k: 'internal_template', l: '🤖 依賴模板 (變題不會)' },
+                        { k: 'internal_forgot', l: '🌫️ 忘記公式/內容' },
+                        { k: 'internal_other', l: '🤷 其他原因' }
+                      ].map(item => (
+                        <div key={item.k} className="flex items-center justify-between bg-white p-2 pl-4 rounded-2xl border border-red-50 shadow-sm">
+                          <span className="text-stone-700 font-medium">{item.l}</span>
+                          <input 
+                            type="number" 
+                            min="0"
+                             value={formData.errors[item.k] === 0 ? '' : formData.errors[item.k]}
+                            placeholder="0"
+                            onChange={(e) => handleErrorCountChange(item.k, e.target.value)}
+                            className="w-14 h-10 text-center bg-red-50 rounded-xl focus:bg-white focus:ring-2 focus:ring-red-200 outline-none font-bold text-lg text-red-800 transition-all placeholder-red-200"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: 策略 */}
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-orange-50 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-green-100 p-2.5 rounded-2xl text-green-600">
+                    <Icons.Sprout className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-700">下一步行動 (2加1減)</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="group flex items-start gap-3">
+                    <div className="bg-green-100 text-green-700 w-10 h-10 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 mt-1 shadow-sm group-hover:bg-green-200 transition-colors">+</div>
+                    <input 
+                      type="text"
+                      name="strategyPlus1"
+                      value={formData.strategyPlus1}
+                      onChange={handleInputChange}
+                      placeholder="我要增加的好習慣..."
+                      className="flex-1 bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-green-300 px-4 py-3 outline-none placeholder-stone-300"
+                    />
+                  </div>
+                  <div className="group flex items-start gap-3">
+                    <div className="bg-green-100 text-green-700 w-10 h-10 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 mt-1 shadow-sm group-hover:bg-green-200 transition-colors">+</div>
+                    <input 
+                      type="text"
+                      name="strategyPlus2"
+                      value={formData.strategyPlus2}
+                      onChange={handleInputChange}
+                      placeholder="我要嘗試的新方法..."
+                      className="flex-1 bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-green-300 px-4 py-3 outline-none placeholder-stone-300"
+                    />
+                  </div>
+                  <div className="group flex items-start gap-3">
+                    <div className="bg-red-100 text-red-700 w-10 h-10 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 mt-1 shadow-sm group-hover:bg-red-200 transition-colors">-</div>
+                    <input 
+                      type="text"
+                      name="strategyMinus1"
+                      value={formData.strategyMinus1}
+                      onChange={handleInputChange}
+                      placeholder="我要停止的壞習慣..."
+                      className="flex-1 bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-red-300 px-4 py-3 outline-none placeholder-stone-300"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <div className="pt-6 pb-12">
+                {error && (
+                  <div className="mb-6 p-4 bg-red-100 text-red-600 rounded-2xl text-center font-bold animate-pulse flex items-center justify-center gap-2">
+                    <Icons.AlertCircle className="w-5 h-5"/> {error}
+                  </div>
+                )}
+                
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full py-4 rounded-full text-white font-bold text-xl shadow-[0_6px_0_rgb(234,88,12)] active:shadow-none active:translate-y-[6px] transition-all flex items-center justify-center gap-2 ${
+                    loading 
+                      ? 'bg-stone-300 shadow-none cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600'
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <Icons.Loader2 className="w-6 h-6 animate-spin" />
+                      用心聆聽中...
+                    </>
+                  ) : (
+                    <>
+                      <Icons.Send className="w-5 h-5" />
+                      送出心裡話，聽聽 老師 怎麼說
+                    </>
+                  )}
+                </button>
+                <div className="text-center mt-6 flex justify-center gap-2 text-stone-400 text-sm">
+                   <span className="flex items-center gap-1"><Icons.BookOpen className="w-3 h-3"/> 誠實</span>
+                   <span>•</span>
+                   <span className="flex items-center gap-1"><Icons.Sprout className="w-3 h-3"/> 成長</span>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ExamReflectionApp />);
+  </script>
+</body>
+
+</html>
+
+
+
+
+
+

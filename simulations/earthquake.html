@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>淺源/深源地震振動模式模擬器（P/S/表面波）v2</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#121a33;
+      --text:#e8ecff;
+      --muted:#a8b2d6;
+      --line:#2a3566;
+      --accent:#7aa2ff;
+      --warn:#ffcc66;
+      --violet:#a78bfa;
+      --good:#57d39d;
+    }
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", Arial;
+    }
+    .wrap{display:flex; flex-direction:column; height:100%;}
+    header{padding:12px 14px; border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(18,26,51,.98), rgba(18,26,51,.85));
+    }
+    header h1{margin:0; font-size:16px; font-weight:700; letter-spacing:.2px;}
+    header p{margin:6px 0 0; font-size:12px; color:var(--muted); line-height:1.35;}
+
+    .panel{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:end;
+      padding:12px 14px; border-bottom:1px solid var(--line); background:rgba(18,26,51,.75);
+    }
+    .group{display:flex; flex-direction:column; gap:6px; min-width:180px;}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    label{font-size:12px; color:var(--muted);}
+    input[type="range"]{width:180px;}
+    select, button{background:#0f1730; color:var(--text); border:1px solid var(--line);
+      border-radius:10px; padding:8px 10px; font-size:12px;
+    }
+    button{cursor:pointer;}
+    button.primary{border-color:rgba(122,162,255,.7); box-shadow:0 0 0 2px rgba(122,162,255,.12) inset;}
+    button:active{transform:translateY(1px);}
+    .pill{display:inline-flex; gap:8px; align-items:center; padding:6px 10px;
+      border-radius:999px; border:1px solid var(--line); background:rgba(15,23,48,.7);
+      font-size:12px; color:var(--muted);
+    }
+    .dot{width:8px; height:8px; border-radius:999px; background:var(--accent);
+      display:inline-block; box-shadow:0 0 0 3px rgba(122,162,255,.12);
+    }
+
+    main{flex:1; display:flex; min-height:0;}
+    canvas{flex:1; width:100%; height:100%; display:block;}
+
+    .legend{position:absolute; right:14px; top:166px; display:flex; flex-direction:column; gap:8px; user-select:none;}
+    .legend .pill b{color:var(--text); font-weight:700;}
+
+    .hint{position:absolute; left:12px; bottom:12px; max-width:min(420px, calc(100% - 24px));
+      background:rgba(15,23,48,.52); border:1px solid var(--line); border-radius:12px;
+      padding:8px 10px; color:var(--muted); font-size:11px; line-height:1.35;
+      pointer-events:none;
+    }
+    .hint code{color:var(--text);}
+
+    @media (max-width: 760px){
+      .group{min-width:160px;}
+      input[type="range"]{width:160px;}
+      .legend{display:none;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>淺源/深源地震振動模式模擬器 v2（速度向量 / 更清晰粒子 / 較弱衰減）</h1>
+      <p>
+        近似模型：以 2D 均質介質的「波前到達 + 位移場疊加」表現 P（徑向）、S（切向）與表面波（近地表 Rayleigh-like 橢圓運動）。
+        本版加入：小屋速度向量顯示（可切 X/Y 分量）、粒子半徑加大/密度調整、衰減減弱以便觀察地表震動方向。
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="group">
+        <label>震源深度 Depth（km，視覺化比例）</label>
+        <div class="row">
+          <input id="depth" type="range" min="2" max="80" value="12" step="1" />
+          <span id="depthVal" class="pill"><span class="dot"></span><b>12</b> km</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>震央距離 Epicentral distance（km，震源相對小屋水平距離）</label>
+        <div class="row">
+          <input id="offset" type="range" min="-120" max="120" value="-30" step="1" />
+          <span id="offsetVal" class="pill"><span class="dot"></span><b>-30</b> km</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>規模 Magnitude（相對振幅）</label>
+        <div class="row">
+          <input id="mag" type="range" min="0.2" max="4.0" value="1.4" step="0.1" />
+          <span id="magVal" class="pill"><span class="dot"></span><b>1.4</b>×</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>顯示/物理參數</label>
+        <div class="row">
+          <select id="mode">
+            <option value="all" selected>顯示：P + S + 表面波</option>
+            <option value="ps">顯示：P + S</option>
+            <option value="p">僅 P 波</option>
+            <option value="s">僅 S 波</option>
+            <option value="rayleigh">僅表面波（Rayleigh-like）</option>
+          </select>
+          <select id="density">
+            <option value="16">點密度：高（較細）</option>
+            <option value="22" selected>點密度：中（推薦）</option>
+            <option value="30">點密度：低（更清楚）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>小屋速度向量（可切換分量）</label>
+        <div class="row">
+          <select id="velMode" title="顯示小屋速度向量；X/Y 為分量顯示">
+            <option value="off" selected>不顯示</option>
+            <option value="vec">顯示：合成向量</option>
+            <option value="x">顯示：X 分量</option>
+            <option value="y">顯示：Y 分量</option>
+          </select>
+          <div class="row" style="gap:8px;">
+            <label class="pill" style="gap:6px;">倍率 <b id="velScaleText">3.0</b>×</label>
+            <input id="velScale" type="range" min="0.5" max="10" value="3.0" step="0.1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>衰減（越小越不衰減）</label>
+        <div class="row">
+          <input id="damp" type="range" min="0.3" max="1.4" value="0.55" step="0.01" />
+          <span id="dampVal" class="pill"><span class="dot" style="background:var(--good)"></span><b>0.55</b>×</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>操作</label>
+        <div class="row">
+          <button id="btnStart" class="primary">開始</button>
+          <button id="btnPause">暫停</button>
+          <button id="btnReset">重置</button>
+          <button id="btnShallow" title="一鍵設定：淺源">淺源</button>
+          <button id="btnDeep" title="一鍵設定：深源">深源</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>波速（視覺化相對值）</label>
+        <div class="row">
+          <label class="pill" title="僅供視覺化相對快慢，非嚴格實際值">Vp: <b id="vpText">6.0</b></label>
+          <label class="pill" title="僅供視覺化相對快慢，非嚴格實際值">Vs: <b id="vsText">3.5</b></label>
+          <label class="pill" title="僅供視覺化相對快慢，非嚴格實際值">Vr: <b id="vrText">3.1</b></label>
+        </div>
+      </div>
+    </section>
+
+    <main style="position:relative;">
+      <canvas id="c"></canvas>
+
+      <div class="legend">
+        <div class="pill"><span class="dot" style="background:#7aa2ff"></span><b>P</b> 徑向壓縮/膨脹（先到）</div>
+        <div class="pill"><span class="dot" style="background:#ffcc66"></span><b>S</b> 切向剪切（後到）</div>
+        <div class="pill"><span class="dot" style="background:#a78bfa"></span><b>表面波</b> 近地表滾動（持續）</div>
+        <div class="pill"><span class="dot" style="background:#57d39d"></span><b>速度</b> 小屋速度向量（可切 X/Y）</div>
+      </div>
+
+      <div class="hint">
+        小提示：
+        1) 將 <code>衰減</code> 拉低可更清楚看到波到達小屋時的主方向；
+        2) 切換 <code>速度向量：X / Y</code> 可對照你所感受到的「水平/上下」成分；
+        3) 若粒子太擁擠，改用 <code>點密度：低</code>（更清楚）。
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    const ui = {
+      depth: document.getElementById('depth'),
+      offset: document.getElementById('offset'),
+      mag: document.getElementById('mag'),
+      mode: document.getElementById('mode'),
+      density: document.getElementById('density'),
+      velMode: document.getElementById('velMode'),
+      velScale: document.getElementById('velScale'),
+      damp: document.getElementById('damp'),
+      depthVal: document.getElementById('depthVal'),
+      offsetVal: document.getElementById('offsetVal'),
+      magVal: document.getElementById('magVal'),
+      dampVal: document.getElementById('dampVal'),
+      velScaleText: document.getElementById('velScaleText'),
+      btnStart: document.getElementById('btnStart'),
+      btnPause: document.getElementById('btnPause'),
+      btnReset: document.getElementById('btnReset'),
+      btnShallow: document.getElementById('btnShallow'),
+      btnDeep: document.getElementById('btnDeep'),
+      vpText: document.getElementById('vpText'),
+      vsText: document.getElementById('vsText'),
+      vrText: document.getElementById('vrText'),
+    };
+
+    // 畫面/座標設定
+    let W=0, H=0;
+    const surfaceYRatio = 0.16;
+    let surfaceY = 80;
+
+    // 介質點
+    let pts = [];
+    let spacing = 22;
+
+    // 時間控制
+    let running = false;
+    let t0 = null;
+    let t = 0;
+    const timeScale = 1.0;
+
+    // 波速（相對）
+    const Vp_km = 6.0;
+    const Vs_km = 3.5;
+    const Vr_km = 3.1;
+    ui.vpText.textContent = Vp_km.toFixed(1);
+    ui.vsText.textContent = Vs_km.toFixed(1);
+    ui.vrText.textContent = Vr_km.toFixed(1);
+
+    // km -> px
+    let kmToPx = 4.2;
+
+    // 波型與衰減（衰減做成可調倍率）
+    const wave = {
+      sigmaP: 10,
+      sigmaS: 12,
+      sigmaR: 16,
+      kP: 0.85,
+      kS: 0.75,
+      kR: 0.60,
+      ampP: 1.0,
+      ampS: 1.6,
+      ampR: 1.2,
+      // 以較弱的基準衰減，並由 damp slider 再乘上倍率
+      alphaBase: 0.010,
+      geoPow: 0.25,
+      eps: 2.0,
+    };
+
+    // 小屋位置
+    let houseX = 0;
+
+    // 震源（由 UI 控制）
+    const src = { xKm: 0, zKm: 12 };
+
+    function buildGrid(){
+      spacing = parseInt(ui.density.value, 10);
+      pts = [];
+      for (let y = surfaceY + spacing; y < H - spacing; y += spacing){
+        for (let x = spacing; x < W - spacing; x += spacing){
+          pts.push({ x0:x, y0:y });
+        }
+      }
+    }
+
+    function resize(){
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const rect = canvas.getBoundingClientRect();
+      W = Math.floor(rect.width);
+      H = Math.floor(rect.height);
+      canvas.width = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      surfaceY = Math.round(H * surfaceYRatio);
+      houseX = Math.round(W * 0.52);
+
+      const depthPxAvailable = (H - surfaceY - 30);
+      kmToPx = Math.max(2.8, Math.min(6.2, depthPxAvailable / 85));
+
+      buildGrid();
+    }
+
+    window.addEventListener('resize', () => { resize(); render(); });
+
+    function syncUI(){
+      ui.depthVal.innerHTML = `<span class="dot"></span><b>${ui.depth.value}</b> km`;
+      ui.offsetVal.innerHTML = `<span class="dot"></span><b>${ui.offset.value}</b> km`;
+      ui.magVal.innerHTML = `<span class="dot"></span><b>${parseFloat(ui.mag.value).toFixed(1)}</b>×`;
+      ui.dampVal.innerHTML = `<span class="dot" style="background:var(--good)"></span><b>${parseFloat(ui.damp.value).toFixed(2)}</b>×`;
+      ui.velScaleText.textContent = parseFloat(ui.velScale.value).toFixed(1);
+    }
+
+    ui.depth.addEventListener('input', () => { syncUI(); render(); });
+    ui.offset.addEventListener('input', () => { syncUI(); render(); });
+    ui.mag.addEventListener('input', () => { syncUI(); render(); });
+    ui.damp.addEventListener('input', () => { syncUI(); render(); });
+    ui.velScale.addEventListener('input', () => { syncUI(); render(); });
+    ui.mode.addEventListener('change', () => { render(); });
+    ui.velMode.addEventListener('change', () => { render(); });
+    ui.density.addEventListener('change', () => { buildGrid(); render(); });
+
+    // 快捷
+    ui.btnShallow.addEventListener('click', () => {
+      ui.depth.value = 8;
+      ui.offset.value = -25;
+      ui.mag.value = 1.7;
+      ui.damp.value = 0.55;
+      syncUI();
+      reset();
+    });
+    ui.btnDeep.addEventListener('click', () => {
+      ui.depth.value = 55;
+      ui.offset.value = -25;
+      ui.mag.value = 1.7;
+      ui.damp.value = 0.55;
+      syncUI();
+      reset();
+    });
+
+    // 控制
+    ui.btnStart.addEventListener('click', () => { requestStart(); });
+    ui.btnPause.addEventListener('click', () => {
+      running = false;
+      t0 = null;
+      render();
+    });
+    ui.btnReset.addEventListener('click', () => reset());
+
+    function reset(){
+      running = false;
+      t0 = null;
+      t = 0;
+      render();
+    }
+
+    function requestStart(){
+      if (!running){
+        running = true;
+        t0 = performance.now();
+        requestAnimationFrame(animate);
+      }
+    }
+
+    // 波形
+    function gaussCos(s, sigma, k){
+      const a = Math.exp(-(s*s) / (2*sigma*sigma));
+      return a * Math.cos(k*s);
+    }
+
+    function attenuate(rKm){
+      const damp = parseFloat(ui.damp.value);
+      const alpha = wave.alphaBase * damp;
+      const geo = 1 / Math.pow(rKm + wave.eps, wave.geoPow);
+      const abs = Math.exp(-alpha * rKm);
+      return geo * abs;
+    }
+
+    function displacementAt(xKm, zKm, timeSec, mode){
+      const sx = src.xKm;
+      const sz = src.zKm;
+
+      const dx = xKm - sx;
+      const dz = zKm - sz;
+      const r = Math.sqrt(dx*dx + dz*dz);
+
+      const invR = 1.0 / Math.max(1e-6, r);
+      const erx = dx * invR;
+      const erz = dz * invR;
+      const etx = -erz;
+      const etz = erx;
+
+      const M = parseFloat(ui.mag.value);
+      let ux = 0, uz = 0;
+
+      // P
+      if (mode === 'all' || mode === 'ps' || mode === 'p'){
+        const sP = r - Vp_km * timeSec;
+        const aP = wave.ampP * M * attenuate(r);
+        const gP = gaussCos(sP, wave.sigmaP, wave.kP);
+        ux += aP * gP * erx;
+        uz += aP * gP * erz;
+      }
+
+      // S
+      if (mode === 'all' || mode === 'ps' || mode === 's'){
+        const sS = r - Vs_km * timeSec;
+        const aS = wave.ampS * M * attenuate(r);
+        const gS = gaussCos(sS, wave.sigmaS, wave.kS);
+        ux += aS * gS * etx;
+        uz += aS * gS * etz;
+      }
+
+      // 表面波（Rayleigh-like）
+      if (mode === 'all' || mode === 'rayleigh'){
+        const zToSurface = sz;
+        const tLaunch = zToSurface / Vp_km;
+
+        if (timeSec > tLaunch){
+          const xEpi = sx;
+          const xSurfDist = Math.abs(xKm - xEpi);
+          const sR = xSurfDist - Vr_km * (timeSec - tLaunch);
+
+          const depthWeight = Math.exp(-Math.max(0, zKm) / 10.0);
+
+          // 表面波衰減也受 damp 控制，但稍微弱一點讓地表更清楚
+          const damp = parseFloat(ui.damp.value);
+          const alphaR = wave.alphaBase * 0.75 * damp;
+          const geoR = 1 / Math.pow(xSurfDist + wave.eps, 0.25);
+          const absR = Math.exp(-alphaR * xSurfDist);
+
+          const aR = wave.ampR * M * depthWeight * geoR * absR;
+          const gR = gaussCos(sR, wave.sigmaR, wave.kR);
+
+          const sign = (xKm - xEpi) >= 0 ? 1 : -1;
+          const phaseShift = Math.PI / 2;
+          const envR = Math.exp(-(sR*sR) / (2*wave.sigmaR*wave.sigmaR));
+          const gR90 = envR * Math.cos(wave.kR*sR + phaseShift);
+
+          ux += aR * gR * sign;
+          uz += aR * 0.85 * gR90;
+        }
+      }
+
+      return { ux, uz };
+    }
+
+    // 速度：用有限差分 v ≈ (u(t) - u(t-Δt))/Δt
+    function velocityAt(xKm, zKm, timeSec, mode){
+      const dtv = 0.02; // s
+      const a = displacementAt(xKm, zKm, timeSec, mode);
+      const b = displacementAt(xKm, zKm, timeSec - dtv, mode);
+      return { vx: (a.ux - b.ux)/dtv, vz: (a.uz - b.uz)/dtv };
+    }
+
+    // 繪圖
+    function drawSurface(){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(231,236,255,0.18)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, surfaceY);
+      ctx.lineTo(W, surfaceY);
+      ctx.stroke();
+
+      const g = ctx.createLinearGradient(0,0,0,surfaceY);
+      g.addColorStop(0,'rgba(122,162,255,0.06)');
+      g.addColorStop(1,'rgba(122,162,255,0.00)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,surfaceY);
+      ctx.restore();
+    }
+
+    function drawHouse(x, y){
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.translate(0, -2);
+
+      ctx.fillStyle = 'rgba(232,236,255,0.85)';
+      ctx.strokeStyle = 'rgba(15,23,48,0.9)';
+      ctx.lineWidth = 2;
+      const w = 34, h = 22;
+      ctx.beginPath();
+      ctx.rect(-w/2, -h, w, h);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(167,139,250,0.90)';
+      ctx.beginPath();
+      ctx.moveTo(-w/2 - 4, -h);
+      ctx.lineTo(0, -h - 18);
+      ctx.lineTo(w/2 + 4, -h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(15,23,48,0.75)';
+      ctx.beginPath();
+      ctx.rect(-5, -h + 8, 10, 14);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(168,178,214,0.9)';
+      ctx.font = '12px ui-sans-serif, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('小屋（地表測站）', 0, 16);
+      ctx.restore();
+    }
+
+    function drawSource(x, y){
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = 'rgba(255,204,102,0.95)';
+      ctx.strokeStyle = 'rgba(15,23,48,0.95)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0,0,6,0,Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255,204,102,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-10,0); ctx.lineTo(10,0);
+      ctx.moveTo(0,-10); ctx.lineTo(0,10);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(168,178,214,0.95)';
+      ctx.font = '12px ui-sans-serif, system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('震源', 12, -8);
+      ctx.restore();
+    }
+
+    function drawArrow(x0, y0, x1, y1, color){
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const L = Math.hypot(dx, dy);
+      if (L < 2) return;
+
+      const ux = dx / L;
+      const uy = dy / L;
+      const head = Math.max(8, Math.min(14, L*0.35));
+      const hx = x1 - ux * head;
+      const hy = y1 - uy * head;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      // arrow head
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(hx - uy*head*0.55, hy + ux*head*0.55);
+      ctx.lineTo(hx + uy*head*0.55, hy - ux*head*0.55);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // roundRect polyfill
+    if (!CanvasRenderingContext2D.prototype.roundRect){
+      CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+        const rr = Math.min(r, w/2, h/2);
+        this.beginPath();
+        this.moveTo(x+rr, y);
+        this.arcTo(x+w, y, x+w, y+h, rr);
+        this.arcTo(x+w, y+h, x, y+h, rr);
+        this.arcTo(x, y+h, x, y, rr);
+        this.arcTo(x, y, x+w, y, rr);
+        this.closePath();
+        return this;
+      };
+    }
+
+    function render(){
+      ctx.clearRect(0,0,W,H);
+      const bg = ctx.createLinearGradient(0, surfaceY, 0, H);
+      bg.addColorStop(0, 'rgba(18,26,51,0.55)');
+      bg.addColorStop(1, 'rgba(11,16,32,1.00)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0,0,W,H);
+
+      drawSurface();
+
+      src.zKm = parseFloat(ui.depth.value);
+      src.xKm = parseFloat(ui.offset.value);
+
+      const srcXpx = houseX + src.xKm * kmToPx;
+      const srcYpx = surfaceY + src.zKm * kmToPx;
+
+      const houseKmX = 0;
+      const houseKmZ = 0.6;
+      const mode = ui.mode.value;
+
+      const dispHouse = displacementAt(houseKmX, houseKmZ, t, mode);
+
+      // 視覺放大：讓「到地表」更容易看出方向
+      const visualGain = 14.0;
+
+      const hx = houseX + dispHouse.ux * visualGain;
+      const hy = surfaceY + dispHouse.uz * visualGain;
+
+      // 粒子：半徑放大 + 位移限制（避免爆衝）
+      const pointRadius = Math.max(2.1, Math.min(3.2, spacing/7));
+      const maxDisp = spacing * 0.90;
+
+      for (const p of pts){
+        const xKm = (p.x0 - houseX) / kmToPx;
+        const zKm = (p.y0 - surfaceY) / kmToPx;
+        const d = displacementAt(xKm, zKm, t, mode);
+
+        let dx = d.ux * visualGain;
+        let dy = d.uz * visualGain;
+
+        const amp = Math.hypot(dx, dy);
+        if (amp > maxDisp){
+          const s = maxDisp / amp;
+          dx *= s; dy *= s;
+        }
+
+        const x = p.x0 + dx;
+        const y = p.y0 + dy;
+
+        const a = Math.max(0.15, Math.min(0.92, 0.22 + amp/18));
+
+        let col = `rgba(232,236,255,${a})`;
+        if (mode === 'p') col = `rgba(122,162,255,${a})`;
+        else if (mode === 's') col = `rgba(255,204,102,${a})`;
+        else if (mode === 'rayleigh') col = `rgba(167,139,250,${a})`;
+
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(x, y, pointRadius, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      drawSource(srcXpx, srcYpx);
+      drawHouse(hx, hy);
+
+      // 速度向量（小屋）
+      const velMode = ui.velMode.value;
+      if (velMode !== 'off'){
+        const v = velocityAt(houseKmX, houseKmZ, t, mode); // km/s
+        // vx 對應畫面 x；vz 對應畫面 y（向下為正）
+        let vx = v.vx;
+        let vy = v.vz;
+        if (velMode === 'x') vy = 0;
+        if (velMode === 'y') vx = 0;
+
+        // 將速度映射到可視箭頭長度（純視覺）
+        const velScale = parseFloat(ui.velScale.value);
+        const arrowDx = vx * visualGain * velScale;
+        const arrowDy = vy * visualGain * velScale;
+
+        const ax0 = hx;
+        const ay0 = hy - 30; // 讓箭頭不要遮住屋頂
+        const ax1 = ax0 + arrowDx;
+        const ay1 = ay0 + arrowDy;
+
+        drawArrow(ax0, ay0, ax1, ay1, 'rgba(87,211,157,0.95)');
+
+        // 數值提示
+        ctx.save();
+        ctx.fillStyle = 'rgba(87,211,157,0.95)';
+        ctx.font = '12px ui-sans-serif, system-ui';
+        ctx.textAlign = 'left';
+        const label = `v  (km/s)  vx=${v.vx.toFixed(3)}  vy=${v.vz.toFixed(3)}  [顯示:${velMode}]`;
+        ctx.fillText(label, 14, Math.min(surfaceY - 10, 10 + 62));
+        ctx.restore();
+      }
+
+      // 到時資訊
+      ctx.save();
+      ctx.fillStyle = 'rgba(168,178,214,0.95)';
+      ctx.font = '12px ui-sans-serif, system-ui';
+      ctx.textAlign = 'left';
+
+      const rHouse = Math.sqrt(src.xKm*src.xKm + src.zKm*src.zKm);
+      const tP = rHouse / Vp_km;
+      const tS = rHouse / Vs_km;
+      const tR = (src.zKm / Vp_km) + (Math.abs(src.xKm) / Vr_km);
+
+      const boxX = 12, boxY = 10;
+      const lines = [
+        `t=${t.toFixed(2)} s   |   r≈${rHouse.toFixed(1)} km`,
+        `到時（近似）：P ${tP.toFixed(2)} s   S ${tS.toFixed(2)} s   表面波 ${tR.toFixed(2)} s`,
+      ];
+
+      const pad = 8;
+      const bw = 440;
+      const bh = 44;
+      ctx.fillStyle = 'rgba(15,23,48,0.66)';
+      ctx.strokeStyle = 'rgba(42,53,102,0.9)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, Math.min(bw, W-28), bh, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(168,178,214,0.95)';
+      lines.forEach((s, i) => {
+        ctx.fillText(s, boxX + pad, boxY + pad + 14*i + 12);
+      });
+      ctx.restore();
+    }
+
+    function animate(now){
+      if (!running) return;
+      if (t0 === null) t0 = now;
+      const dt = (now - t0) / 1000;
+      t0 = now;
+      t += dt * timeScale;
+      render();
+      requestAnimationFrame(animate);
+    }
+
+    // init（預設不自動播放；調整參數後按「開始」才跑，且不做循環重置）
+    function startDefault(){
+      syncUI();
+      resize();
+      render();
+      running = false;
+      t0 = null;
+    }
+
+    startDefault();
+  </script>
+</body>
+</html>

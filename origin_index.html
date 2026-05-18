@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>駿佾老師的科學模擬 Happy Land</title>
+    <!-- 引入 Tailwind CSS 進行快速切版與美化 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide Icons 圖示庫 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0fdf4; /* 淺綠色背景，充滿生機 */
+        }
+        /* 自定義捲軸樣式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out, margin 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- 頂部導航欄 (Header) -->
+    <header class="bg-gradient-to-r from-indigo-600 to-blue-500 text-white shadow-lg z-20 shrink-0">
+        <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center gap-3">
+                <!-- 手機版/桌面版 通用的收合按鈕 -->
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-white/20 transition-colors focus:outline-none">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <div class="flex flex-col">
+                    <h1 class="text-xl md:text-2xl font-bold tracking-wider flex items-center gap-2">
+                        <i data-lucide="flask-conical" class="w-6 h-6 animate-pulse"></i>
+                        駿佾老師的科學模擬 Happy Land
+                    </h1>
+                    <span class="text-xs md:text-sm text-blue-100 opacity-90">探索科學的奧秘，從動手玩開始！</span>
+                </div>
+            </div>
+            <!-- 右側裝飾或額外連結 -->
+            <div class="hidden md:flex items-center gap-2">
+                <span class="bg-white/20 px-3 py-1 rounded-full text-xs">Science is Fun!</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主內容區塊 (Flex Container) -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- 左側側邊欄 (Sidebar) -->
+        <!-- 預設在桌面顯示，手機隱藏 (透過 -translate-x-full 控制) -->
+        <aside id="sidebar" class="w-80 bg-white border-r border-gray-200 flex flex-col shadow-xl sidebar-transition absolute md:relative z-10 h-full -translate-x-full md:translate-x-0">
+            
+            <div class="p-4 bg-indigo-50 border-b border-indigo-100">
+                <h2 class="font-bold text-indigo-800 flex items-center gap-2">
+                    <i data-lucide="list-video" class="w-5 h-5"></i>
+                    模擬選單
+                </h2>
+            </div>
+
+            <!-- 選單列表 -->
+            <div id="menu-list" class="flex-1 overflow-y-auto p-3 space-y-3">
+                <!-- Javascript 會在這裡動態生成按鈕 -->
+            </div>
+
+            <!-- 側邊欄底部 -->
+            <div class="p-4 border-t border-gray-200 text-center text-xs text-gray-500 bg-gray-50">
+                &copy; 駿佾老師科學教室
+            </div>
+        </aside>
+
+        <!-- 右側主畫面 (Main Content) -->
+        <main class="flex-1 flex flex-col relative bg-gray-100 w-full">
+            <!-- 遮罩 (僅在手機版側邊欄打開時顯示) -->
+            <div id="overlay" onclick="toggleSidebar()" class="absolute inset-0 bg-black/50 z-0 hidden md:hidden"></div>
+
+            <!-- 模擬標題列 -->
+            <div class="bg-white px-6 py-3 border-b border-gray-200 flex justify-between items-center shadow-sm">
+                <h2 id="current-title" class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-yellow-500"></i>
+                    歡迎來到科學樂園
+                </h2>
+                <button onclick="reloadIframe()" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-1">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> 重整
+                </button>
+            </div>
+
+            <!-- Iframe 容器 -->
+            <div class="flex-1 p-2 md:p-4 overflow-hidden">
+                <div class="w-full h-full bg-white rounded-xl shadow-inner border-4 border-indigo-100 relative overflow-hidden">
+                    <!-- 預設歡迎畫面 -->
+                    <div id="welcome-screen" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-gradient-to-br from-blue-50 to-indigo-50">
+                        <i data-lucide="microscope" class="w-24 h-24 text-indigo-300 mb-6"></i>
+                        <h3 class="text-2xl font-bold text-gray-700 mb-2">準備好開始科學探險了嗎？</h3>
+                        <p class="text-gray-500 max-w-md">請點擊左側選單選擇一個模擬主題，讓我們一起在互動中學習！</p>
+                    </div>
+
+                    <!-- 實際 Iframe -->
+                    <iframe id="simulation-frame" class="w-full h-full hidden" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ==========================================
+        //  設定區域：請將您的網址填入下方的 url 欄位中
+        // ==========================================
+        const simulations = [
+            {
+                id: 1,
+                title: "電流物流模擬系統",
+                desc: "由物流類比電功率的概念",
+                icon: "truck", // Logistics
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+                url: "https://augustin0106.github.io/mysite/circuitsimulator.html"
+            },
+            {
+                id: 2,
+                title: "人生攻略",
+                desc: "駿佾老師做的網站，由模擬遊戲體驗人生",
+                icon: "gamepad-2",
+                color: "text-slate-600",
+                bg: "bg-slate-50",
+                url: "https://csjh163.wixsite.com/my-site"
+            },
+            {
+                id: 3,
+                title: "元素大師",
+                desc: "考驗你的元素中文與代號對應、週期表排序與離子配對！",
+                icon: "atom", // Lucide icon name
+                color: "text-blue-500",
+                bg: "bg-blue-50",
+                url: "https://augustin0106.github.io/mysite/element"
+            },
+            {
+                id: 4,
+                title: "離子與化合物大師",
+                desc: "挑戰離子價數表與組合電中性化合物！",
+                icon: "flask-conical",
+                color: "text-purple-500",
+                bg: "bg-purple-50",
+                url: "https://augustin0106.github.io/mysite/ionandcompound"
+            },
+            {
+                id: 5,
+                title: "石墨導電原理模擬",
+                desc: "為什麼石墨會導電而鑽石不會？",
+                icon: "zap",
+                color: "text-yellow-500",
+                bg: "bg-yellow-50",
+                url: "https://augustin0106.github.io/mysite/carbon"
+            },
+            {
+                id: 6,
+                title: "地震搖晃方向分析",
+                desc: "114年第二次模模考題目進階探討。",
+                icon: "activity",
+                color: "text-red-500",
+                bg: "bg-red-50",
+                url: "https://augustin0106.github.io/mysite/earthquake"
+            },
+            {
+                id: 7,
+                title: "浮空投影",
+                desc: "討論 Hologram 成像位置與最高點。",
+                icon: "box",
+                color: "text-teal-500",
+                bg: "bg-teal-50",
+                url: "https://augustin0106.github.io/mysite/hologram"
+            },
+            {
+                id: 8,
+                title: "光反射題型",
+                desc: "常見雙反射魚尾題，角度如何改變？",
+                icon: "sun",
+                color: "text-orange-500",
+                bg: "bg-orange-50",
+                url: "https://augustin0106.github.io/mysite/fishtail"
+            },
+            {
+                id: 9,
+                title: "資優聖誕特別企劃",
+                desc: "溫馨的搶奪禮物大作戰!",
+                icon: "gift",
+                color: "text-red-600",
+                bg: "bg-red-50",
+                url: "https://augustin0106.github.io/mysite/christmasgame"
+            },
+            {
+                id: 10,
+                title: "讀書策略反思輔助器",
+                desc: "用明確的心理學原理引導你思考接下來學習策略該如何調整?",
+                icon: "brain-circuit",
+                color: "text-pink-500",
+                bg: "bg-pink-50",
+                url: "https://augustin0106.github.io/mysite/reflection.html"
+            },
+            {
+                id: 11,
+                title: "解憂雜貨店",
+                desc: "陪著你換位思考，看到冰山底下的脈絡",
+                icon: "heart-handshake",
+                color: "text-emerald-600",
+                bg: "bg-emerald-50",
+                url: "https://augustin0106.github.io/mysite/conflict.html"
+            }
+        ];
+
+        // ==========================================
+        //  程式邏輯區
+        // ==========================================
+
+        const menuList = document.getElementById('menu-list');
+        const simulationFrame = document.getElementById('simulation-frame');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const currentTitle = document.getElementById('current-title');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        
+        let isMobile = window.innerWidth < 768;
+
+        // 初始化選單
+        function initMenu() {
+            menuList.innerHTML = '';
+            simulations.forEach(sim => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-3 rounded-xl transition-all duration-200 hover:shadow-md group border border-transparent hover:border-indigo-200 ${sim.bg} mb-2`;
+                btn.onclick = () => loadSimulation(sim);
+                
+                btn.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 bg-white rounded-full shadow-sm shrink-0 group-hover:scale-110 transition-transform">
+                            <i data-lucide="${sim.icon}" class="w-6 h-6 ${sim.color}"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 group-hover:text-indigo-700">${sim.title}</h3>
+                            <p class="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2">${sim.desc}</p>
+                        </div>
+                    </div>
+                `;
+                menuList.appendChild(btn);
+            });
+            // 重新渲染圖示
+            lucide.createIcons();
+        }
+
+        // 載入模擬分頁
+        function loadSimulation(sim) {
+            // 更新標題
+            currentTitle.innerHTML = `
+                <i data-lucide="${sim.icon}" class="w-5 h-5 ${sim.color}"></i>
+                ${sim.title}
+            `;
+            lucide.createIcons();
+
+            // 切換顯示
+            welcomeScreen.classList.add('hidden');
+            simulationFrame.classList.remove('hidden');
+
+            // 處理網址 (如果沒有填寫網址，顯示提示畫面)
+            if (!sim.url || sim.url.trim() === "") {
+                const placeholderContent = `
+                    <body style="margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#f9fafb; font-family:sans-serif; color:#4b5563;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <h2 style="margin-top:20px;">連結尚未設定</h2>
+                        <p>請在程式碼的 <code>simulations</code> 變數中填入對應的網址。</p>
+                    </body>
+                `;
+                simulationFrame.srcdoc = placeholderContent;
+                simulationFrame.removeAttribute('src');
+            } else {
+                simulationFrame.removeAttribute('srcdoc');
+                simulationFrame.src = sim.url;
+            }
+
+            // 如果是手機版，點擊後自動收合選單
+            if (window.innerWidth < 768) {
+                closeSidebar();
+            }
+        }
+
+        // 重整 iframe
+        function reloadIframe() {
+            if (!simulationFrame.classList.contains('hidden')) {
+                simulationFrame.src = simulationFrame.src;
+            }
+        }
+
+        // 側邊欄控制
+        function toggleSidebar() {
+            const isSidebarOpen = !sidebar.classList.contains('-translate-x-full');
+            
+            if (window.innerWidth < 768) {
+                // 手機版行為：滑動出現/消失，並切換遮罩
+                sidebar.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+            } else {
+                // 桌面版行為：推擠內容或隱藏
+                if (isSidebarOpen) {
+                    sidebar.classList.add('-translate-x-full'); // 隱藏
+                    sidebar.classList.remove('md:translate-x-0'); // 移除強制顯示
+                    sidebar.style.position = 'absolute'; // 避免佔位
+                } else {
+                    sidebar.classList.remove('-translate-x-full'); // 顯示
+                    sidebar.classList.add('md:translate-x-0');
+                    sidebar.style.position = 'relative'; // 恢復佔位
+                }
+            }
+        }
+
+        function closeSidebar() {
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        // 監聽視窗大小改變
+        window.addEventListener('resize', () => {
+            const newIsMobile = window.innerWidth < 768;
+            if (isMobile !== newIsMobile) {
+                isMobile = newIsMobile;
+                // 重置樣式以避免 layout 錯亂
+                sidebar.style.position = '';
+                if (!isMobile) {
+                    sidebar.classList.remove('-translate-x-full');
+                    sidebar.classList.add('md:translate-x-0');
+                    overlay.classList.add('hidden');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                }
+            }
+        });
+
+        // 啟動
+        initMenu();
+
+    </script>
+</body>
+</html>
+
+
+

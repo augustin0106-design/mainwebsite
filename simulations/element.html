@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素大師 by駿佾師</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (UMD) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase Compat SDKs (保留 Firebase 作為備用或未來擴充，若不使用可忽略) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* Custom Animations */
+        @keyframes bounce-in {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        .animate-bounce-in {
+            animation: bounce-in 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.5s ease-out forwards;
+        }
+        /* Custom Scrollbar for Leaderboard */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c7c7c7;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen font-sans text-gray-800">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- CONFIGURATION ---
+        // 更新為您最新的 GAS 部署網址 (2024 Latest Update)
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDcFXSzXuxV5XDhN-9EXNE6rD2q81LUsnUcQoOU69S-6XtXPx_-cvg8GeFqKBhOXuOnw/exec";
+        
+        // --- FIREBASE INIT (Optional Backup) ---
+        let firebaseApp, db, auth;
+        const appId = 'chem-game-html-final';
+        try {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                apiKey: "YOUR_API_KEY_HERE_IF_LOCAL",
+                authDomain: "YOUR_PROJECT.firebaseapp.com",
+                projectId: "YOUR_PROJECT_ID"
+            };
+            if (!firebase.apps.length) {
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+            } else {
+                firebaseApp = firebase.app();
+            }
+            db = firebase.firestore();
+            auth = firebase.auth();
+        } catch (e) {
+            // console.warn("Firebase Init Warning:", e);
+            db = null; auth = null;
+        }
+
+        // --- ICONS ---
+        const Icons = {
+            Atom: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"/><path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"/></svg>,
+            Beaker: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></svg>,
+            FlaskConical: ({size=24}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>,
+            Trophy: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>,
+            Home: ({size=24}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+            RotateCcw: ({size=24}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+            CheckCircle2: ({size=24}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>,
+            ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+            FileSpreadsheet: ({size=24}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>,
+            CloudUpload: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>,
+            Refresh: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        };
+
+        // --- DATA ---
+        const ELEMENTS_DATA = [
+            { symbol: 'H', name: '氫', group: '1A', period: 1 }, { symbol: 'Li', name: '鋰', group: '1A', period: 2 },
+            { symbol: 'Na', name: '鈉', group: '1A', period: 3 }, { symbol: 'K', name: '鉀', group: '1A', period: 4 },
+            { symbol: 'Rb', name: '銣', group: '1A', period: 5 }, { symbol: 'Cs', name: '銫', group: '1A', period: 6 },
+            { symbol: 'Fr', name: '鈁', group: '1A', period: 7 },
+            { symbol: 'Be', name: '鈹', group: '2A', period: 2 }, { symbol: 'Mg', name: '鎂', group: '2A', period: 3 },
+            { symbol: 'Ca', name: '鈣', group: '2A', period: 4 }, { symbol: 'Sr', name: '鍶', group: '2A', period: 5 },
+            { symbol: 'Ba', name: '鋇', group: '2A', period: 6 }, { symbol: 'Ra', name: '鐳', group: '2A', period: 7 },
+            { symbol: 'B', name: '硼', group: '3A', period: 2 }, { symbol: 'Al', name: '鋁', group: '3A', period: 3 },
+            { symbol: 'Ga', name: '鎵', group: '3A', period: 4 }, { symbol: 'In', name: '銦', group: '3A', period: 5 },
+            { symbol: 'Tl', name: '鉈', group: '3A', period: 6 },
+            { symbol: 'C', name: '碳', group: '4A', period: 2 }, { symbol: 'Si', name: '矽', group: '4A', period: 3 },
+            { symbol: 'Ge', name: '鍺', group: '4A', period: 4 }, { symbol: 'Sn', name: '錫', group: '4A', period: 5 },
+            { symbol: 'Pb', name: '鉛', group: '4A', period: 6 },
+            { symbol: 'N', name: '氮', group: '5A', period: 2 }, { symbol: 'P', name: '磷', group: '5A', period: 3 },
+            { symbol: 'As', name: '砷', group: '5A', period: 4 }, { symbol: 'Sb', name: '銻', group: '5A', period: 5 },
+            { symbol: 'Bi', name: '鉍', group: '5A', period: 6 },
+            { symbol: 'O', name: '氧', group: '6A', period: 2 }, { symbol: 'S', name: '硫', group: '6A', period: 3 },
+            { symbol: 'Se', name: '硒', group: '6A', period: 4 }, { symbol: 'Te', name: '碲', group: '6A', period: 5 },
+            { symbol: 'Po', name: '釙', group: '6A', period: 6 },
+            { symbol: 'F', name: '氟', group: '7A', period: 2 }, { symbol: 'Cl', name: '氯', group: '7A', period: 3 },
+            { symbol: 'Br', name: '溴', group: '7A', period: 4 }, { symbol: 'I', name: '碘', group: '7A', period: 5 },
+            { symbol: 'At', name: '砈', group: '7A', period: 6 },
+            { symbol: 'He', name: '氦', group: '8A', period: 1 }, { symbol: 'Ne', name: '氖', group: '8A', period: 2 },
+            { symbol: 'Ar', name: '氬', group: '8A', period: 3 }, { symbol: 'Kr', name: '氪', group: '8A', period: 4 },
+            { symbol: 'Xe', name: '氙', group: '8A', period: 5 }, { symbol: 'Rn', name: '氡', group: '8A', period: 6 },
+            { symbol: 'Fe', name: '鐵' }, { symbol: 'Cu', name: '銅' }, { symbol: 'Zn', name: '鋅' },
+            { symbol: 'Ag', name: '銀' }, { symbol: 'Au', name: '金' }, { symbol: 'Hg', name: '汞' },
+            { symbol: 'Mn', name: '錳' }, { symbol: 'Co', name: '鈷' }, { symbol: 'Ni', name: '鎳' },
+            { symbol: 'Pt', name: '鉑' }, { symbol: 'Cr', name: '鉻' }
+        ];
+
+        const IONS_DATA = [
+            { formula: 'H⁺', name: '氫離子' }, { formula: 'Li⁺', name: '鋰離子' },
+            { formula: 'Na⁺', name: '鈉離子' }, { formula: 'K⁺', name: '鉀離子' },
+            { formula: 'Ag⁺', name: '銀離子' }, { formula: 'NH₄⁺', name: '銨根離子' },
+            { formula: 'Mg²⁺', name: '鎂離子' }, { formula: 'Ca²⁺', name: '鈣離子' },
+            { formula: 'Ba²⁺', name: '鋇離子' }, { formula: 'Zn²⁺', name: '鋅離子' },
+            { formula: 'Pb²⁺', name: '鉛離子' }, { formula: 'Cu²⁺', name: '銅離子' },
+            { formula: 'Fe²⁺', name: '亞鐵離子' },
+            { formula: 'Al³⁺', name: '鋁離子' }, { formula: 'Fe³⁺', name: '鐵離子' },
+            { formula: 'F⁻', name: '氟離子' }, { formula: 'Cl⁻', name: '氯離子' },
+            { formula: 'Br⁻', name: '溴離子' }, { formula: 'I⁻', name: '碘離子' },
+            { formula: 'OH⁻', name: '氫氧根離子' }, { formula: 'NO₃⁻', name: '硝酸根離子' },
+            { formula: 'CH₃COO⁻', name: '醋酸根離子' }, { formula: 'HCO₃⁻', name: '碳酸氫根離子' },
+            { formula: 'O²⁻', name: '氧離子' }, { formula: 'S²⁻', name: '硫離子' },
+            { formula: 'SO₄²⁻', name: '硫酸根離子' }, { formula: 'CO₃²⁻', name: '碳酸根離子' },
+            { formula: 'PO₄³⁻', name: '磷酸根離子' }
+        ];
+
+        const GAME_TYPES = {
+            MEMORY_ELEMENTS: 'elements',
+            GROUP_ORDER: 'group_order',
+            MEMORY_IONS: 'ions',
+        };
+
+        const GAME_TYPE_LABELS = {
+            'elements': '元素配對',
+            'group_order': '週期表排序',
+            'ions': '離子配對'
+        };
+
+        const PRAISE_MESSAGES = [
+            "太強了吧！🔥", "你是天才嗎？！✨", "聰明到爆！🧠", 
+            "小天才是尼！🧪", "答對了逼波逼波！🎉", "手到擒來爹斯！🌟", 
+            "棒棒棒棒！💪", "簡直不可思議喔！🚀"
+        ];
+        
+        const getRandomPraise = () => PRAISE_MESSAGES[Math.floor(Math.random() * PRAISE_MESSAGES.length)];
+
+        // --- COMPONENTS ---
+
+        const FeedbackOverlay = ({ message, isVisible }) => {
+            if (!isVisible) return null;
+            return (
+                <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-50 animate-bounce-in">
+                    <div className="bg-white/90 backdrop-blur-sm px-8 py-4 rounded-2xl shadow-2xl border-4 border-yellow-400 transform scale-110">
+                        <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600">
+                            {message}
+                        </span>
+                    </div>
+                </div>
+            );
+        };
+
+        const Card = ({ content, type, isFlipped, isMatched, onClick }) => (
+            <button
+                onClick={onClick}
+                disabled={isFlipped || isMatched}
+                className={`relative w-24 h-32 m-2 rounded-xl shadow-md transition-all duration-300 ${isMatched ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}
+                style={{
+                    transformStyle: 'preserve-3d',
+                    transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    transition: 'transform 0.5s'
+                }}
+            >
+                {/* Front (Logo) */}
+                <div 
+                    className="absolute inset-0 w-full h-full bg-indigo-600 rounded-xl flex items-center justify-center"
+                    style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(0deg)', // Explicitly 0
+                        opacity: isFlipped ? 0 : 1 // Fallback opacity for browsers that struggle with backface
+                    }}
+                >
+                    <div className="text-white opacity-50"><Icons.Atom /></div>
+                </div>
+
+                {/* Back (Content) */}
+                <div 
+                    className="absolute inset-0 w-full h-full bg-white border-2 border-indigo-200 rounded-xl flex flex-col items-center justify-center"
+                    style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg)', // Pre-rotated 180deg so when parent rotates 180, this becomes 360(0)
+                        opacity: isFlipped ? 1 : 0 // Fallback opacity
+                    }}
+                >
+                    <span className={`${type === 'formula' || type === 'symbol' ? 'text-2xl font-bold font-mono text-indigo-700' : 'text-lg font-bold text-gray-800'}`}>
+                        {content}
+                    </span>
+                </div>
+            </button>
+        );
+
+        const MemoryGame = ({ data, onComplete, gameType, user }) => {
+            const [cards, setCards] = React.useState([]);
+            const [flipped, setFlipped] = React.useState([]);
+            const [matched, setMatched] = React.useState([]);
+            const [moves, setMoves] = React.useState(0);
+            const [timer, setTimer] = React.useState(0);
+            const [isGameActive, setIsGameActive] = React.useState(false);
+            const [feedback, setFeedback] = React.useState({ msg: '', visible: false });
+
+            React.useEffect(() => {
+                startNewGame();
+            }, []);
+
+            React.useEffect(() => {
+                let interval;
+                if (isGameActive) {
+                    interval = setInterval(() => setTimer(t => t + 1), 1000);
+                }
+                return () => clearInterval(interval);
+            }, [isGameActive]);
+
+            const showPraise = () => {
+                setFeedback({ msg: getRandomPraise(), visible: true });
+                setTimeout(() => setFeedback(prev => ({ ...prev, visible: false })), 1500);
+            };
+
+            const startNewGame = () => {
+                const shuffledData = [...data].sort(() => 0.5 - Math.random()).slice(0, 8);
+                const deck = [];
+                shuffledData.forEach((item, index) => {
+                    deck.push({ 
+                        id: `pair-${index}-a`, pairId: index, 
+                        content: item.symbol || item.formula, type: item.symbol ? 'symbol' : 'formula' 
+                    });
+                    deck.push({ 
+                        id: `pair-${index}-b`, pairId: index, 
+                        content: item.name, type: 'name' 
+                    });
+                });
+                setCards(deck.sort(() => 0.5 - Math.random()));
+                setFlipped([]);
+                setMatched([]);
+                setMoves(0);
+                setTimer(0);
+                setIsGameActive(true);
+            };
+
+            const handleCardClick = (index) => {
+                if (flipped.length === 2 || matched.includes(cards[index].pairId) || flipped.includes(index)) return;
+
+                const newFlipped = [...flipped, index];
+                setFlipped(newFlipped);
+
+                if (newFlipped.length === 2) {
+                    setMoves(m => m + 1);
+                    const [firstIndex, secondIndex] = newFlipped;
+                    if (cards[firstIndex].pairId === cards[secondIndex].pairId) {
+                        const newMatched = [...matched, cards[firstIndex].pairId];
+                        setMatched(newMatched);
+                        setFlipped([]);
+                        showPraise();
+                        if (newMatched.length === 8) {
+                           setIsGameActive(false);
+                           const score = Math.max(0, 1000 - (timer * 2) - (moves * 10));
+                           setTimeout(() => onComplete(score), 1500);
+                        }
+                    } else {
+                        setTimeout(() => setFlipped([]), 1000);
+                    }
+                }
+            };
+
+            return (
+                <div className="flex flex-col items-center relative">
+                    <FeedbackOverlay message={feedback.msg} isVisible={feedback.visible} />
+                    <div className="flex justify-between w-full max-w-2xl mb-4 px-4">
+                        <div className="bg-white px-4 py-2 rounded-lg shadow text-indigo-800 font-bold">⏳ 時間: {timer}s</div>
+                        <div className="bg-white px-4 py-2 rounded-lg shadow text-indigo-800 font-bold">🔄 步數: {moves}</div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 md:gap-4 mb-6">
+                        {cards.map((card, index) => (
+                            <Card
+                                key={card.id}
+                                {...card}
+                                isFlipped={flipped.includes(index) || matched.includes(card.pairId)}
+                                isMatched={matched.includes(card.pairId)}
+                                onClick={() => handleCardClick(index)}
+                            />
+                        ))}
+                    </div>
+                    <button onClick={startNewGame} className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-full hover:bg-indigo-700 transition">
+                        <Icons.RotateCcw size={18} /> 重新開始
+                    </button>
+                </div>
+            );
+        };
+
+        const GroupSortGame = ({ onComplete }) => {
+            const groups = ['1A', '2A', '3A', '4A', '5A', '6A', '7A', '8A'];
+            const [currentGroup, setCurrentGroup] = React.useState('1A');
+            const [pool, setPool] = React.useState([]);
+            const [slots, setSlots] = React.useState([]);
+            const [timer, setTimer] = React.useState(0);
+            const [isGameActive, setIsGameActive] = React.useState(false);
+            const [message, setMessage] = React.useState('');
+            const [feedback, setFeedback] = React.useState({ msg: '', visible: false });
+
+            React.useEffect(() => {
+                startLevel(currentGroup);
+            }, [currentGroup]);
+
+            React.useEffect(() => {
+                let interval;
+                if (isGameActive) {
+                    interval = setInterval(() => setTimer(t => t + 1), 1000);
+                }
+                return () => clearInterval(interval);
+            }, [isGameActive]);
+
+            const startLevel = (group) => {
+                const groupElements = ELEMENTS_DATA.filter(e => e.group === group);
+                const shuffled = [...groupElements].sort(() => 0.5 - Math.random());
+                setPool(shuffled);
+                setSlots(Array(groupElements.length).fill(null));
+                setIsGameActive(true);
+                setMessage('');
+            };
+
+            const handlePoolClick = (element) => {
+                const firstEmptyIndex = slots.findIndex(s => s === null);
+                if (firstEmptyIndex !== -1) {
+                    const newSlots = [...slots];
+                    newSlots[firstEmptyIndex] = element;
+                    setSlots(newSlots);
+                    setPool(pool.filter(e => e.symbol !== element.symbol));
+                }
+            };
+
+            const handleSlotClick = (index) => {
+                if (slots[index]) {
+                    setPool([...pool, slots[index]]);
+                    const newSlots = [...slots];
+                    newSlots[index] = null;
+                    setSlots(newSlots);
+                }
+            };
+
+            const checkAnswer = () => {
+                if (slots.includes(null)) {
+                    setMessage('⚠️ 請填滿所有空格！');
+                    return;
+                }
+                const groupElements = ELEMENTS_DATA.filter(e => e.group === currentGroup).sort((a,b) => a.period - b.period);
+                let isCorrect = true;
+                slots.forEach((slot, index) => {
+                    if (slot.symbol !== groupElements[index].symbol) isCorrect = false;
+                });
+                if (isCorrect) {
+                    setFeedback({ msg: getRandomPraise(), visible: true });
+                    setTimeout(() => setFeedback(prev => ({...prev, visible: false})), 1500);
+                    setTimeout(() => {
+                        const currentIndex = groups.indexOf(currentGroup);
+                        if (currentIndex < groups.length - 1) {
+                            setCurrentGroup(groups[currentIndex + 1]);
+                        } else {
+                            setIsGameActive(false);
+                            const score = Math.max(0, 2000 - (timer * 5));
+                            onComplete(score);
+                        }
+                    }, 1500);
+                } else {
+                    setMessage('❌ 順序錯誤啦，再檢查一下原子序或週期吧！');
+                }
+            };
+
+            return (
+                <div className="flex flex-col items-center w-full max-w-3xl relative">
+                    <FeedbackOverlay message={feedback.msg} isVisible={feedback.visible} />
+                    <div className="bg-indigo-100 p-4 rounded-xl mb-6 text-center w-full">
+                        <h3 className="text-xl font-bold text-indigo-800 mb-2">當前挑戰: {currentGroup} 族</h3>
+                        <p className="text-sm text-indigo-600">請依照「週期小到大」（由上往下）的順序排列元素</p>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2 mb-8 min-h-[80px] w-full bg-gray-50 p-4 rounded-lg border-2 border-dashed border-gray-300">
+                        {slots.map((slot, index) => (
+                            <div key={`slot-${index}`} onClick={() => handleSlotClick(index)} className={`w-16 h-20 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all ${slot ? 'bg-indigo-500 text-white shadow-lg transform hover:-translate-y-1' : 'bg-gray-200 text-gray-400'}`}>
+                                {slot ? <><span className="font-bold text-xl">{slot.symbol}</span><span className="text-xs">{slot.name}</span></> : <span className="text-2xl font-bold opacity-20">{index + 1}</span>}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2 mb-8">
+                        {pool.map((element) => (
+                            <button key={element.symbol} onClick={() => handlePoolClick(element)} className="w-16 h-20 bg-white border-2 border-indigo-200 rounded-lg flex flex-col items-center justify-center hover:bg-indigo-50 transition shadow-sm">
+                                <span className="font-bold text-xl text-indigo-700">{element.symbol}</span>
+                                <span className="text-xs text-gray-600">{element.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    {message && <div className={`mb-4 font-bold ${message.includes('正確') ? 'text-green-600' : 'text-red-500'}`}>{message}</div>}
+                    <button onClick={checkAnswer} className="bg-green-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-green-700 transition flex items-center gap-2">
+                        <Icons.CheckCircle2 /> 提交答案
+                    </button>
+                </div>
+            );
+        };
+
+        const Leaderboard = () => {
+            const [scores, setScores] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [error, setError] = React.useState(null);
+            const [filterType, setFilterType] = React.useState('all'); // all, elements, group_order, ions
+            
+            const fetchScores = React.useCallback(async () => {
+                setLoading(true);
+                setError(null);
+                try {
+                    const response = await fetch(GOOGLE_SCRIPT_URL);
+                    if (!response.ok) throw new Error("網路回應不正確");
+                    const data = await response.json();
+                    
+                    // 從 GAS 的 doGet 獲取資料
+                    // 資料結構預期為 Array of { date, playerName, gameType, score }
+                    const formattedData = data.map(item => ({
+                        ...item,
+                        score: parseInt(item.score) || 0,
+                        date: item.date || '' 
+                    })).sort((a, b) => b.score - a.score); // 預設由高到低排序
+
+                    setScores(formattedData);
+                } catch (err) {
+                    console.error("Fetch error:", err);
+                    setError("無法載入排行榜，請稍後再試。");
+                } finally {
+                    setLoading(false);
+                }
+            }, []);
+
+            React.useEffect(() => {
+                fetchScores();
+            }, [fetchScores]);
+
+            // 過濾資料
+            const filteredScores = React.useMemo(() => {
+                if (filterType === 'all') return scores;
+                return scores.filter(s => s.gameType === GAME_TYPES[filterType] || s.gameType === GAME_TYPE_LABELS[GAME_TYPES[filterType]]); 
+                // 兼容英文 code 和中文 label
+            }, [scores, filterType]);
+
+            // 處理顯示的遊戲名稱
+            const getGameLabel = (type) => {
+                if (type === 'elements' || type === '元素配對') return '元素配對';
+                if (type === 'group_order' || type === '週期表排序') return '週期表排序';
+                if (type === 'ions' || type === '離子配對') return '離子配對';
+                return type;
+            };
+
+            const copyToCSV = () => {
+                const header = "姓名,遊戲類型,分數,日期\n";
+                const rows = scores.map(s => {
+                    let dateStr = '-';
+                    if (s.date) {
+                        try {
+                            dateStr = new Date(s.date).toLocaleDateString();
+                        } catch (e) { dateStr = s.date; }
+                    }
+                    return `${s.playerName},${getGameLabel(s.gameType)},${s.score},${dateStr}`;
+                }).join("\n");
+                const csvContent = header + rows;
+                const el = document.createElement('textarea');
+                el.value = csvContent;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                alert("已複製 CSV 格式資料！");
+            };
+
+            return (
+                <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-6 flex flex-col h-[600px]">
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                            <Icons.Trophy className="text-yellow-500" /> 排行榜 (GAS)
+                        </h2>
+                        
+                        <div className="flex gap-2">
+                            <button onClick={fetchScores} className="p-2 bg-gray-100 rounded hover:bg-gray-200 transition" title="重新整理">
+                                <Icons.Refresh className={loading ? 'animate-spin' : ''} size={20}/>
+                            </button>
+                            <button onClick={copyToCSV} className="text-sm bg-green-100 text-green-700 px-3 py-2 rounded hover:bg-green-200 flex items-center gap-1 font-bold">
+                                <Icons.FileSpreadsheet size={16}/> 複製全部
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filter Tabs */}
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                        <button 
+                            onClick={() => setFilterType('all')}
+                            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition ${filterType === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        >
+                            全部顯示
+                        </button>
+                        <button 
+                            onClick={() => setFilterType('MEMORY_ELEMENTS')}
+                            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition ${filterType === 'MEMORY_ELEMENTS' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        >
+                            元素配對
+                        </button>
+                        <button 
+                            onClick={() => setFilterType('GROUP_ORDER')}
+                            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition ${filterType === 'GROUP_ORDER' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        >
+                            週期表排序
+                        </button>
+                        <button 
+                            onClick={() => setFilterType('MEMORY_IONS')}
+                            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition ${filterType === 'MEMORY_IONS' ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        >
+                            離子配對
+                        </button>
+                    </div>
+
+                    {/* Table Content */}
+                    <div className="overflow-y-auto custom-scrollbar flex-grow bg-gray-50 rounded-lg border border-gray-200">
+                        <table className="w-full relative border-collapse">
+                            <thead className="sticky top-0 z-10">
+                                <tr className="bg-gray-200 text-left text-gray-700 font-bold shadow-sm">
+                                    <th className="p-3 w-16 text-center">排名</th>
+                                    <th className="p-3">姓名</th>
+                                    <th className="p-3">遊戲</th>
+                                    <th className="p-3 text-right">分數</th>
+                                    <th className="p-3 text-right text-xs text-gray-500">日期</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {loading ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-gray-500">
+                                        <div className="flex justify-center items-center gap-2">
+                                            <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce"></div>
+                                            <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                            <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        </div>
+                                        <span className="text-sm mt-2 block">正在從 Google Sheet 讀取資料...</span>
+                                    </td></tr>
+                                ) : error ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-red-500">{error}</td></tr>
+                                ) : filteredScores.length > 0 ? (
+                                    filteredScores.map((s, i) => (
+                                        <tr key={i} className="border-b border-gray-100 hover:bg-indigo-50 transition">
+                                            <td className="p-3 text-center font-bold text-gray-500">
+                                                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                                            </td>
+                                            <td className="p-3 font-medium text-gray-800">{s.playerName}</td>
+                                            <td className="p-3 text-sm">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold 
+                                                    ${getGameLabel(s.gameType) === '元素配對' ? 'bg-blue-100 text-blue-700' : 
+                                                      getGameLabel(s.gameType) === '週期表排序' ? 'bg-purple-100 text-purple-700' : 
+                                                      'bg-pink-100 text-pink-700'}`}>
+                                                    {getGameLabel(s.gameType)}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-right font-mono text-indigo-600 font-bold text-lg">{s.score}</td>
+                                            <td className="p-3 text-right text-xs text-gray-400">
+                                                {s.date ? new Date(s.date).toLocaleDateString() : '-'}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">
+                                        尚無此分類的紀錄，快去挑戰吧！
+                                    </td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [currentScreen, setCurrentScreen] = React.useState('menu'); 
+            const [activeGame, setActiveGame] = React.useState(null);
+            const [playerName, setPlayerName] = React.useState('');
+            const [tempScore, setTempScore] = React.useState(null);
+            const [uploadStatus, setUploadStatus] = React.useState('idle');
+            const [user, setUser] = React.useState(null); // Firebase user (optional)
+
+            // Firebase Auth Listener (Optional)
+            React.useEffect(() => {
+                if(auth) {
+                    auth.onAuthStateChanged(setUser);
+                }
+            }, []);
+
+            const handleStartGame = (type) => {
+                if (!playerName.trim()) {
+                    alert("請先輸入您的名字！");
+                    return;
+                }
+                setActiveGame(type);
+                setCurrentScreen('game');
+                setTempScore(null);
+                setUploadStatus('idle');
+            };
+
+            const handleGameComplete = async (score) => {
+                setTempScore(score);
+                
+                // 轉換遊戲名稱以配合 GAS 的顯示 (中文名稱比較直觀)
+                const gameTypeName = activeGame === GAME_TYPES.MEMORY_ELEMENTS ? '元素配對' : 
+                                   activeGame === GAME_TYPES.GROUP_ORDER ? '週期表排序' : '離子配對';
+
+                // 1. 嘗試寫入 Firebase (備份)
+                if (user && db) {
+                    try {
+                        db.collection('artifacts').doc(appId).collection('public').doc('data').collection('scores').add({
+                            playerName: playerName,
+                            gameType: activeGame,
+                            score: score,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            userId: user.uid
+                        });
+                    } catch(e) { console.warn("Firebase save failed", e); }
+                }
+
+                // 2. 上傳到 Google Apps Script (主要)
+                if (GOOGLE_SCRIPT_URL) {
+                    setUploadStatus('uploading');
+                    try {
+                        // 使用 fetch POST + no-cors
+                        await fetch(GOOGLE_SCRIPT_URL, {
+                            method: 'POST',
+                            mode: 'no-cors', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                playerName: playerName,
+                                gameType: gameTypeName,
+                                score: score
+                            })
+                        });
+                        
+                        setUploadStatus('done');
+                    } catch (e) {
+                        console.error("GAS upload error:", e);
+                        setUploadStatus('error');
+                    }
+                }
+                
+                // 3秒後跳轉到排行榜
+                setTimeout(() => setCurrentScreen('scores'), 3000);
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto flex flex-col items-center p-4">
+                    <header className="flex justify-between items-center w-full mb-8 bg-white/80 backdrop-blur p-4 rounded-2xl shadow-sm border border-white/50">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-indigo-600 p-2 rounded-lg text-white"><Icons.FlaskConical size={24} /></div>
+                            <h1 className="text-xl font-bold text-indigo-900 tracking-tight">元素大師 Chemistry Master by駿佾師</h1>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setCurrentScreen('menu')} className={`p-2 rounded-lg transition ${currentScreen === 'menu' ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-gray-100 text-gray-500'}`} title="回首頁"><Icons.Home size={20} /></button>
+                            <button onClick={() => setCurrentScreen('scores')} className={`p-2 rounded-lg transition ${currentScreen === 'scores' ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-gray-100 text-gray-500'}`} title="排行榜"><Icons.Trophy size={20} /></button>
+                        </div>
+                    </header>
+
+                    {currentScreen === 'menu' && (
+                        <div className="w-full max-w-md animate-fade-in bg-white p-8 rounded-2xl shadow-xl text-center border border-indigo-50">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-800">準備好挑戰了嗎？</h2>
+                            <div className="mb-6 text-left">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">輸入你的班級座號姓名，登分會以最高的那一個計算!</label>
+                                <input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)} placeholder="例如：80567" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+                            </div>
+                            <div className="space-y-3">
+                                <button onClick={() => handleStartGame(GAME_TYPES.MEMORY_ELEMENTS)} className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-bold shadow-lg flex items-center justify-between px-6 hover:scale-[1.02] transition">
+                                    <span className="flex items-center gap-3"><Icons.Atom /> 元素符號配對</span><Icons.ChevronRight />
+                                </button>
+                                <button onClick={() => handleStartGame(GAME_TYPES.GROUP_ORDER)} className="w-full py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-bold shadow-lg flex items-center justify-between px-6 hover:scale-[1.02] transition">
+                                    <span className="flex items-center gap-3"><Icons.Beaker /> 週期表排序王</span><Icons.ChevronRight />
+                                </button>
+                                <button onClick={() => handleStartGame(GAME_TYPES.MEMORY_IONS)} className="w-full py-4 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-xl font-bold shadow-lg flex items-center justify-between px-6 hover:scale-[1.02] transition">
+                                    <span className="flex items-center gap-3"><Icons.FlaskConical /> 離子大挑戰</span><Icons.ChevronRight />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentScreen === 'game' && (
+                        <div className="w-full flex flex-col items-center animate-fade-in">
+                            {tempScore !== null ? (
+                                <div className="bg-white p-8 rounded-2xl shadow-xl text-center w-full max-w-md border border-indigo-50">
+                                    <h2 className="text-3xl font-bold text-indigo-600 mb-4">挑戰完成！</h2>
+                                    <p className="text-gray-600 mb-2">您的得分</p>
+                                    <div className="text-6xl font-mono font-bold text-yellow-500 mb-6">{tempScore}</div>
+                                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500 bg-gray-50 py-3 px-4 rounded-lg">
+                                        {uploadStatus === 'idle' && <span>成績結算中...</span>}
+                                        {uploadStatus === 'uploading' && <span className="flex items-center gap-2 text-blue-600"><Icons.CloudUpload className="animate-bounce" size={16} /> 正在上傳至 Google Sheet...</span>}
+                                        {uploadStatus === 'done' && <span className="flex items-center gap-2 text-green-600 font-bold"><Icons.CheckCircle2 size={16} /> 成績已上傳成功！</span>}
+                                        {uploadStatus === 'error' && <span className="text-red-500">上傳可能失敗 (請檢查網路)</span>}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-2">即將跳轉至排行榜...</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {activeGame === GAME_TYPES.MEMORY_ELEMENTS && <div className="w-full"><h2 className="text-center text-2xl font-bold mb-6 text-indigo-800">元素符號配對</h2><MemoryGame data={ELEMENTS_DATA} onComplete={handleGameComplete} /></div>}
+                                    {activeGame === GAME_TYPES.MEMORY_IONS && <div className="w-full"><h2 className="text-center text-2xl font-bold mb-6 text-pink-800">常見離子配對</h2><MemoryGame data={IONS_DATA} onComplete={handleGameComplete} /></div>}
+                                    {activeGame === GAME_TYPES.GROUP_ORDER && <div className="w-full flex justify-center"><GroupSortGame onComplete={handleGameComplete} /></div>}
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {currentScreen === 'scores' && <div className="w-full flex justify-center animate-fade-in"><Leaderboard /></div>}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

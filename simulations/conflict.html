@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>心靈解憂雜貨店：換位思考練習</title>
+  
+  <!-- 引入 React 和 Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- 引入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 引入 Google Fonts (手寫感字體，營造溫暖氛圍) -->
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- 移除外部 Lucide 腳本，改用內部定義以避免錯誤 -->
+  
+  <style>
+    body {
+      font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+      background-color: #F0F4F8; /* 寧靜的灰藍色背景 */
+      background-image: radial-gradient(#E2E8F0 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: #334155;
+    }
+    .card-shadow {
+      box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+    }
+    /* 自定義捲軸 */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F0F4F8; 
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1; 
+      border-radius: 10px;
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.8s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .input-field {
+      transition: all 0.3s ease;
+    }
+    .input-field:focus {
+      box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- 內建圖示組件 (解決 CDN 引用錯誤問題) ---
+    const IconWrapper = ({ children, className, size = 24, ...props }) => (
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+        {...props}
+      >
+        {children}
+      </svg>
+    );
+
+    const Icons = {
+      Feather: (props) => <IconWrapper {...props}><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" /><line x1="16" y1="8" x2="2" y2="22" /><line x1="17.5" y1="15" x2="9" y2="15" /></IconWrapper>,
+      User: (props) => <IconWrapper {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></IconWrapper>,
+      MessageCircle: (props) => <IconWrapper {...props}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></IconWrapper>,
+      Zap: (props) => <IconWrapper {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></IconWrapper>,
+      Anchor: (props) => <IconWrapper {...props}><circle cx="12" cy="5" r="3" /><line x1="12" y1="22" x2="12" y2="8" /><path d="M5 12H2a10 10 0 0 0 20 0h-3" /></IconWrapper>,
+      Sparkles: (props) => <IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></IconWrapper>,
+      RefreshCw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></IconWrapper>,
+      ArrowRight: (props) => <IconWrapper {...props}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></IconWrapper>,
+      ArrowLeft: (props) => <IconWrapper {...props}><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></IconWrapper>,
+      Heart: (props) => <IconWrapper {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></IconWrapper>,
+      Loader2: (props) => <IconWrapper {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></IconWrapper>,
+      Send: (props) => <IconWrapper {...props}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></IconWrapper>,
+    };
+
+    const { Send, Heart, MessageCircle, User, Zap, Sparkles, Feather, ArrowRight, RefreshCw, Anchor, ArrowLeft, Loader2 } = Icons;
+
+    function App() {
+      // ▼▼▼ 這裡已填入您提供的 GAS 網址 ▼▼▼
+      const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby-g1ZYZPOZTTk4vbHfrvC-RQ-qxobDrlG7qqKmHud6mfhPJooSjLJ3PTwPYEz1PXmC/exec";
+      // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+      const [step, setStep] = useState(1); // 控制填寫步驟
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState("");
+
+      const [formData, setFormData] = useState({
+        event: "",
+        emotions: [],
+        myView: "",
+        otherRole: "",
+        conflictCore: ""
+      });
+
+      const emotionsList = [
+        "😣 緊張", "😞 失望", "😡 生氣", "😳 羞愧", "😫 疲憊",
+        "😕 困惑", "😰 恐懼", "😤 委屈", "😶 無奈", "😐 麻木"
+      ];
+
+      const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+      };
+
+      const toggleEmotion = (emotion) => {
+        setFormData(prev => {
+          const current = prev.emotions;
+          if (current.includes(emotion)) {
+            return { ...prev, emotions: current.filter(e => e !== emotion) };
+          } else {
+            return { ...prev, emotions: [...current, emotion] };
+          }
+        });
+      };
+
+      const handleSubmit = async () => {
+        setLoading(true);
+        setError("");
+
+        try {
+          // 使用 fetch 發送 POST 請求
+          // text/plain 是為了避免跨域問題 (CORS)，GAS 會處理這類請求
+          const response = await fetch(GAS_WEB_APP_URL, {
+            method: "POST",
+            body: JSON.stringify(formData)
+          });
+          
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            setResult(data.result);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } else {
+            throw new Error(data.message || "發生未知錯誤");
+          }
+        } catch (err) {
+          console.error(err);
+          setError("傳送失敗，請檢查網路連線後再試一次。");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // --- 結果頁面：諮商分析與建議 ---
+      if (result) {
+        return (
+          <div className="min-h-screen p-4 md:p-8 flex justify-center items-start animate-fade-in bg-[#F0F4F8]">
+            <div className="max-w-4xl w-full space-y-8 pb-12">
+              
+              {/* 標題區 */}
+              <div className="text-center mb-8 pt-4">
+                <div className="inline-flex items-center justify-center p-4 bg-white rounded-full shadow-sm mb-4">
+                  <Feather className="w-8 h-8 text-teal-600" />
+                </div>
+                <h1 className="text-3xl font-bold text-slate-700 tracking-wide">心靈解憂信箱</h1>
+                <p className="text-slate-500 mt-2 font-medium">這是我們一起梳理心結的地方</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* 1. 換位思考卡片 */}
+                <div className="bg-white rounded-[2rem] p-8 card-shadow border-l-8 border-teal-200 relative overflow-hidden group hover:border-teal-400 transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <User size={120} className="text-teal-600" />
+                  </div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-teal-100 p-2.5 rounded-xl text-teal-600 shadow-sm"><MessageCircle size={24}/></div>
+                    <h2 className="text-xl font-bold text-slate-700 leading-snug">
+                      如果有機會，<br/>
+                      <span className="text-teal-600 text-2xl">{formData.otherRole}</span> 想對你說...
+                    </h2>
+                  </div>
+                  <div className="prose prose-slate leading-loose text-slate-600 italic bg-teal-50 p-6 rounded-2xl border border-teal-100 relative">
+                    <span className="absolute top-2 left-2 text-4xl text-teal-200 opacity-50">"</span>
+                    {result.otherPerspective}
+                    <span className="absolute bottom-[-10px] right-4 text-4xl text-teal-200 opacity-50">"</span>
+                  </div>
+                </div>
+
+                {/* 2. 衝突核心卡片 */}
+                <div className="bg-white rounded-[2rem] p-8 card-shadow border-l-8 border-indigo-200 relative overflow-hidden group hover:border-indigo-400 transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Zap size={120} className="text-indigo-600" />
+                  </div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-indigo-100 p-2.5 rounded-xl text-indigo-600 shadow-sm"><Anchor size={24}/></div>
+                    <h2 className="text-xl font-bold text-slate-700">冰山底下的原因</h2>
+                  </div>
+                  <div className="bg-indigo-50/50 p-6 rounded-2xl min-h-[200px] flex items-center">
+                    <p className="leading-relaxed text-slate-600 text-lg font-medium">
+                      {result.rootCause}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. 駿佾老師的建議 */}
+              <div className="bg-white rounded-[2rem] p-8 md:p-10 card-shadow border-t-8 border-amber-300 relative">
+                <div className="flex flex-col md:flex-row gap-6 items-start">
+                  <div className="flex-shrink-0 mx-auto md:mx-0">
+                    <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 shadow-sm">
+                      <Sparkles size={40} />
+                    </div>
+                  </div>
+                  <div className="flex-1 w-full">
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2 text-center md:text-left">駿佾老師想跟你說</h2>
+                    <div className="w-16 h-1.5 bg-amber-300 mb-6 rounded-full mx-auto md:mx-0"></div>
+                    <div className="bg-amber-50/50 p-6 rounded-3xl border border-amber-100">
+                      <div className="prose prose-slate max-w-none text-slate-700 leading-8 whitespace-pre-line text-lg">
+                        {result.teacherAdvice}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 重新開始按鈕 */}
+              <div className="text-center pt-8">
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full font-bold transition-all transform hover:scale-105 shadow-lg text-lg"
+                >
+                  <RefreshCw size={20} />
+                  練習另一個事件
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      }
+
+      // --- 填寫表單頁面 (分步驟呈現，降低壓力) ---
+      return (
+        <div className="min-h-screen py-6 px-4 md:py-10 flex justify-center items-center bg-[#F0F4F8]">
+          <div className="max-w-2xl w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[650px] flex flex-col">
+            
+            {/* 進度條 */}
+            <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
+              <div 
+                className="h-full bg-teal-500 transition-all duration-500 ease-out"
+                style={{ width: `${(step / 3) * 100}%` }}
+              ></div>
+            </div>
+
+            <div className="p-8 md:p-12 flex-1 flex flex-col">
+              
+              {/* Step 1: 事件與情緒 */}
+              {step === 1 && (
+                <div className="flex-1 flex flex-col animate-fade-in">
+                  <div className="mb-6">
+                    <span className="text-teal-600 font-bold text-sm tracking-widest uppercase mb-1 block">Step 1</span>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2">發生了什麼事？</h2>
+                    <p className="text-slate-500">試著客觀描述一下這件事，就像攝影機拍下來一樣。</p>
+                  </div>
+                  
+                  <div className="space-y-6 flex-1">
+                    <textarea 
+                      name="event"
+                      value={formData.event}
+                      onChange={handleInputChange}
+                      className="input-field w-full h-32 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-teal-300 outline-none resize-none text-lg text-slate-700 placeholder:text-slate-400"
+                      placeholder="例如：昨天晚上因為玩手機跟媽媽吵架..."
+                    />
+                    
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <Heart size={20} className="text-rose-400"/>
+                        當下你的感受是... (可多選)
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {emotionsList.map(emotion => (
+                          <button
+                            key={emotion}
+                            onClick={() => toggleEmotion(emotion)}
+                            className={`px-4 py-2.5 rounded-full text-sm font-bold transition-all border transform hover:-translate-y-0.5 ${
+                              formData.emotions.includes(emotion)
+                                ? 'bg-teal-500 border-teal-500 text-white shadow-md'
+                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            {emotion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex justify-end">
+                    <button 
+                      onClick={() => setStep(2)}
+                      disabled={!formData.event}
+                      className="flex items-center gap-2 px-8 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-full font-bold transition-all shadow-lg hover:shadow-xl transform active:scale-95"
+                    >
+                      下一步 <ArrowRight size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: 觀點與角色 */}
+              {step === 2 && (
+                <div className="flex-1 flex flex-col animate-fade-in">
+                  <div className="mb-6">
+                    <span className="text-teal-600 font-bold text-sm tracking-widest uppercase mb-1 block">Step 2</span>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2">誰在故事裡？</h2>
+                    <p className="text-slate-500">讓我們釐清一下雙方的立場。</p>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-2 text-lg">你的觀點 (你當時在想什麼？)</label>
+                      <textarea 
+                        name="myView"
+                        value={formData.myView}
+                        onChange={handleInputChange}
+                        className="input-field w-full h-28 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-teal-300 outline-none resize-none text-lg text-slate-700 placeholder:text-slate-400"
+                        placeholder="例如：我覺得我已經寫完功課了，為什麼不能放鬆一下..."
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-2 text-lg">對方的角色是？</label>
+                      <input 
+                        type="text" 
+                        name="otherRole"
+                        value={formData.otherRole}
+                        onChange={handleInputChange}
+                        className="input-field w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-teal-300 outline-none text-lg text-slate-700 placeholder:text-slate-400"
+                        placeholder="例如：媽媽、數學老師、最好的朋友..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex justify-between items-center">
+                    <button onClick={() => setStep(1)} className="flex items-center gap-1 text-slate-400 hover:text-slate-600 font-bold px-2 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <ArrowLeft size={18} /> 上一步
+                    </button>
+                    <button 
+                      onClick={() => setStep(3)}
+                      disabled={!formData.myView || !formData.otherRole}
+                      className="flex items-center gap-2 px-8 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-full font-bold transition-all shadow-lg hover:shadow-xl transform active:scale-95"
+                    >
+                      下一步 <ArrowRight size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: 核心衝突 */}
+              {step === 3 && (
+                <div className="flex-1 flex flex-col animate-fade-in">
+                  <div className="mb-6">
+                    <span className="text-teal-600 font-bold text-sm tracking-widest uppercase mb-1 block">Step 3</span>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2">最後一個問題</h2>
+                    <p className="text-slate-500">你覺得讓你們卡住的那個「結」是什麼？</p>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-2 text-lg">核心衝突點</label>
+                      <textarea 
+                        name="conflictCore"
+                        value={formData.conflictCore}
+                        onChange={handleInputChange}
+                        className="input-field w-full h-32 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-teal-300 outline-none resize-none text-lg text-slate-700 placeholder:text-slate-400"
+                        placeholder="例如：我不喜歡被不信任的感覺，但他覺得我不自律..."
+                      />
+                    </div>
+                    
+                    <div className="bg-amber-50 p-5 rounded-2xl text-amber-800 text-sm flex gap-3 items-start border border-amber-100">
+                      <Sparkles className="w-6 h-6 flex-shrink-0 mt-0.5 text-amber-500" />
+                      <p className="leading-relaxed font-medium">填寫完畢後，駿佾老師會運用 AI 協助你進行換位思考分析，這可能會給你一些新的啟發喔！</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex justify-between items-center">
+                    <button onClick={() => setStep(2)} className="flex items-center gap-1 text-slate-400 hover:text-slate-600 font-bold px-2 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <ArrowLeft size={18} /> 上一步
+                    </button>
+                    
+                    <button 
+                      onClick={handleSubmit}
+                      disabled={loading || !formData.conflictCore}
+                      className="flex items-center gap-2 px-10 py-4 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full font-bold text-lg shadow-lg hover:shadow-2xl transform transition-all active:scale-95"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin" size={20} />
+                          老師思考中...
+                        </>
+                      ) : (
+                        <>
+                          開始換位思考 <Zap size={20} fill="currentColor"/>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {error && (
+                    <div className="mt-4 p-3 bg-red-50 text-red-600 text-center rounded-xl text-sm font-bold border border-red-100 animate-pulse">
+                      ⚠️ {error}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="fixed bottom-4 text-center w-full text-slate-400 text-xs font-medium opacity-60">
+            Powered by Gemini AI • Design for Counseling
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+
+</html>
+
+

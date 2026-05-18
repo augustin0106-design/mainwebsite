@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>司乃耳定律 (含光速)</title>
+    <style>
+        /* --- 基礎樣式 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Microsoft JhengHei";
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            margin: 0;
+        }
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+        
+        /* --- 響應式佈局容器 --- */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        /* --- 控制項區域 --- */
+        .controls {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            flex-grow: 1;
+            min-width: 300px;
+            box-sizing: border-box;
+        }
+        .controls label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .controls select, .controls input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .slider-control {
+            grid-column: 1 / -1; 
+        }
+        
+        /* --- Canvas 繪圖區 --- */
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            max-width: 600px;
+            width: 100%;
+            height: auto;
+            flex-shrink: 0;
+        }
+        
+        /* --- 公式顯示區 --- */
+        #formula-display {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            font-size: 1.2em;
+            font-family: "Times New Roman", Times, serif;
+            text-align: center;
+            min-width: 300px;
+            width: 100%;
+            max-width: 900px;
+            box-sizing: border-box;
+        }
+        #formula-display .math {
+            font-style: italic;
+        }
+        #formula-display .tir-warning {
+            color: #d93025;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>司乃耳定律 (Snell's Law) 互動動畫</h2>
+
+    <div class="container">
+        <!-- Canvas 繪圖區 (優先顯示) -->
+        <canvas id="snell-canvas"></canvas>
+
+        <!-- 互動控制區 -->
+        <div class="controls">
+            <div class="slider-control">
+                <label for="angle-slider">入射角 $\theta_1$: <span id="angle-value">30.0</span>°</label>
+                <input type="range" id="angle-slider" min="0" max="89.9" value="30" step="0.1">
+            </div>
+            <div>
+                <label for="medium-n1">介質 1 ($n_1$)</label>
+                <select id="medium-n1"></select>
+            </div>
+            <div>
+                <label for="medium-n2">介質 2 ($n_2$)</label>
+                <select id="medium-n2"></select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 公式顯示區 -->
+    <div id="formula-display">
+        <span class="math">n₁ sin(θ₁) = n₂ sin(θ₂)</span>
+    </div>
+
+
+    <script>
+        // --- 1. 定義介質與常數 ---
+        const media = {
+            '真空 (Vacuum)': 1.000,
+            '空氣 (Air)': 1.0003,
+            '水 (Water)': 1.333,
+            '乙醇 (Ethanol)': 1.360,
+            '玻璃 (Glass)': 1.520,
+            '鑽石 (Diamond)': 2.417,
+        };
+        const mediaNames = Object.keys(media);
+        const C_LIGHT = 299792458; // 真空光速 m/s
+
+        // --- 2. 獲取 DOM 元素 ---
+        const canvas = document.getElementById('snell-canvas');
+        const ctx = canvas.getContext('2d');
+        const angleSlider = document.getElementById('angle-slider');
+        const angleValueSpan = document.getElementById('angle-value');
+        const selectN1 = document.getElementById('medium-n1');
+        const selectN2 = document.getElementById('medium-n2');
+        const formulaDisplay = document.getElementById('formula-display');
+
+        // --- 3. 繪圖常數與變數 ---
+        let cx, cy, lineLength;
+
+        // --- 4. 響應式 Canvas 設定 ---
+        function resizeCanvas() {
+            const controlsWidth = document.querySelector('.controls').offsetWidth;
+            const maxWidth = 600;
+            let canvasWidth = Math.max(300, controlsWidth, window.innerWidth * 0.8);
+
+            if (window.innerWidth >= 1000) {
+                 canvasWidth = maxWidth;
+            } else if (window.innerWidth < 768) {
+                canvasWidth = window.innerWidth - 40; 
+            }
+            
+            canvas.width = Math.min(canvasWidth, maxWidth);
+            canvas.height = canvas.width * 0.75; 
+
+            cx = canvas.width / 2;
+            cy = canvas.height / 2;
+            lineLength = Math.min(cx, cy) * 0.9;
+            
+            const container = document.querySelector('.container');
+            if (window.innerWidth < 768) {
+                container.style.flexDirection = 'column';
+                container.style.alignItems = 'center';
+            } else {
+                container.style.flexDirection = 'row';
+                container.style.alignItems = 'flex-start';
+            }
+            draw(); 
+        }
+
+        // --- 5. 填充介質選單 ---
+        function populateSelectors() {
+            mediaNames.forEach(name => {
+                const option1 = document.createElement('option');
+                option1.value = name;
+                option1.textContent = name;
+                selectN1.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = name;
+                option2.textContent = name;
+                selectN2.appendChild(option2);
+            });
+            selectN1.value = '空氣 (Air)';
+            selectN2.value = '水 (Water)';
+        }
+        
+        // --- 6. (新功能) 格式化光速輔助函數 ---
+        /**
+         * 根據折射率 n 計算光速 v，並格式化為科學記號
+         * @param {number} n - 折射率
+         * @returns {string} - 格式化後的光速字串
+         */
+        function formatSpeed(n) {
+            const v = C_LIGHT / n;
+            // toExponential(2) 會產生如 "2.25e+8" 的字串
+            const v_str = v.toExponential(2); 
+            const parts = v_str.split('e');
+            const mantissa = parts[0]; // "2.25"
+            // \u00D7是 '×' 乘號, \u2078是 '⁸' 上標8
+            return `v = ${mantissa} \u00D7 10\u2078 m/s`;
+        }
+
+        // --- 7. 核心繪圖函數 ---
+        function draw() {
+            // 獲取當前值
+            const theta_1_deg = parseFloat(angleSlider.value);
+            const n1_name = selectN1.value;
+            const n2_name = selectN2.value;
+            const n1 = media[n1_name];
+            const n2 = media[n2_name];
+            
+            angleValueSpan.textContent = theta_1_deg.toFixed(1);
+            const theta_1_rad = theta_1_deg * (Math.PI / 180);
+
+            // --- 司乃耳定律計算 ---
+            const sin_theta_2_val = (n1 / n2) * Math.sin(theta_1_rad);
+            const is_TIR = (n1 > n2) && (sin_theta_2_val > 1.0000001); 
+            
+            let theta_2_rad = 0;
+            let theta_2_deg = 0;
+            
+            if (!is_TIR) {
+                const sin_val_clamped = Math.max(-1, Math.min(1, sin_theta_2_val));
+                theta_2_rad = Math.asin(sin_val_clamped);
+                theta_2_deg = theta_2_rad * (180 / Math.PI);
+            }
+
+            // --- 清除畫布 ---
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // --- 繪製介面 ---
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#0000ff';
+            ctx.lineWidth = 2;
+            ctx.moveTo(0, cy);
+            ctx.lineTo(canvas.width, cy);
+            ctx.stroke();
+
+            // --- 繪製法線 ---
+            ctx.beginPath();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'gray';
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]); 
+
+            // --- 繪製標籤 (n1, n2, 法線) ---
+            ctx.fillStyle = 'black';
+            ctx.font = '16px "Microsoft JhengHei", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            // 繪製 n1
+            ctx.fillText(`n₁ = ${n1.toFixed(3)} (${n1_name})`, 10, 10);
+            // (新功能) 繪製 v1
+            ctx.font = '15px "Times New Roman", Times, serif';
+            ctx.fillText(formatSpeed(n1), 10, 30); // 在 n1 下方顯示 v1
+
+            // 繪製 n2
+            ctx.font = '16px "Microsoft JhengHei", sans-serif';
+            ctx.fillText(`n₂ = ${n2.toFixed(3)} (${n2_name})`, 10, cy + 10);
+            // (新功能) 繪製 v2
+            ctx.font = '15px "Times New Roman", Times, serif';
+            ctx.fillText(formatSpeed(n2), 10, cy + 30); // 在 n2 下方顯示 v2
+            
+            // 繪製 "法線"
+            ctx.fillStyle = 'gray';
+            ctx.font = '16px "Microsoft JhengHei", sans-serif'; // 恢復字體
+            ctx.textAlign = 'center';
+            ctx.fillText('法線', cx + 15, 5); 
+
+            // --- 繪製入射光 (Incident Ray) ---
+            const x_inc = cx - lineLength * Math.sin(theta_1_rad);
+            const y_inc = cy - lineLength * Math.cos(theta_1_rad);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2.5;
+            ctx.moveTo(x_inc, y_inc);
+            ctx.lineTo(cx, cy);
+            ctx.stroke();
+            
+            // 標示 "入射光"
+            ctx.fillStyle = 'red';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.save(); 
+            ctx.translate((x_inc + cx) / 2, (y_inc + cy) / 2);
+            ctx.rotate(-theta_1_rad);
+            ctx.fillText('入射光', 0, -10);
+            ctx.restore(); 
+
+            // --- 繪製 θ₁ 角度弧線和標籤 (已修正) ---
+            if (theta_1_deg > 0.1) {
+                const normal_upper_angle = -Math.PI / 2; // 上方 (270度)
+                const ray_inc_angle = normal_upper_angle - theta_1_rad;
+                
+                ctx.beginPath();
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 1;
+                ctx.arc(cx, cy, 40, normal_upper_angle, ray_inc_angle, false); // 順時針
+                ctx.stroke();
+                
+                const angle_1_mid_rad = normal_upper_angle - theta_1_rad / 2;
+                ctx.fillStyle = 'red';
+                ctx.font = 'italic 18px "Times New Roman"';
+                ctx.fillText('θ₁', cx + 55 * Math.cos(angle_1_mid_rad), cy + 55 * Math.sin(angle_1_mid_rad));
+            }
+
+            
+            if (is_TIR) {
+                // --- 情況 A: 全反射 (Total Internal Reflection) ---
+                const x_refl = cx + lineLength * Math.sin(theta_1_rad);
+                const y_refl = cy - lineLength * Math.cos(theta_1_rad); 
+                
+                ctx.beginPath();
+                ctx.strokeStyle = 'magenta';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([8, 4]);
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(x_refl, y_refl);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                ctx.fillStyle = 'magenta';
+                ctx.font = '16px "Microsoft JhengHei", sans-serif';
+                ctx.save();
+                ctx.translate((x_refl + cx) / 2, (y_refl + cy) / 2);
+                ctx.rotate(theta_1_rad);
+                ctx.fillText('全反射', 0, -10);
+                ctx.restore();
+
+                const theta_c_deg = Math.asin(n2 / n1) * (180 / Math.PI);
+                formulaDisplay.innerHTML = `
+                    <div class="math">n₁ sin(θ₁) = n₂ sin(θ₂)</div>
+                    <div>${n1.toFixed(3)} ⋅ sin(${theta_1_deg.toFixed(1)}°) = ${(n1 * Math.sin(theta_1_rad)).toFixed(3)}</div>
+                    <div class="tir-warning">
+                        sin(θ₂) = ${sin_theta_2_val.toFixed(3)} > 1，發生全反射！<br>
+                        (臨界角 $\theta_c$ = ${theta_c_deg.toFixed(1)}°)
+                    </div>
+                `;
+
+            } else {
+                // --- 情況 B: 折射 (Refraction) ---
+                const x_refr = cx + lineLength * Math.sin(theta_2_rad);
+                const y_refr = cy + lineLength * Math.cos(theta_2_rad);
+                
+                ctx.beginPath();
+                ctx.strokeStyle = 'green';
+                ctx.lineWidth = 2.5;
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(x_refr, y_refr);
+                ctx.stroke();
+                
+                ctx.fillStyle = 'green';
+                ctx.font = '16px "Microsoft JhengHei", sans-serif';
+                ctx.save();
+                ctx.translate((x_refr + cx) / 2, (y_refr + cy) / 2);
+                ctx.rotate(theta_2_rad);
+                ctx.fillText('折射光', 0, 15);
+                ctx.restore();
+
+                // --- 繪製 θ₂ 角度弧線和標籤 (已修正) ---
+                if (theta_2_deg > 0.1) {
+                    const ray_refr_angle = Math.atan2(Math.cos(theta_2_rad), Math.sin(theta_2_rad));
+                    const normal_lower_angle = Math.PI / 2;
+                    
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'green';
+                    ctx.lineWidth = 1;
+                    ctx.arc(cx, cy, 40, ray_refr_angle, normal_lower_angle, true); // 逆時針
+                    ctx.stroke();
+                    
+                    const angle_2_mid_rad = (ray_refr_angle + normal_lower_angle) / 2;
+                    ctx.fillStyle = 'green';
+                    ctx.font = 'italic 18px "Times New Roman"';
+                    ctx.fillText('θ₂', cx + 55 * Math.cos(angle_2_mid_rad), cy + 55 * Math.sin(angle_2_mid_rad));
+                }
+
+                // 更新公式顯示
+                formulaDisplay.innerHTML = `
+                    <div class="math">n₁ sin(θ₁) = n₂ sin(θ₂)</div>
+                    <div>${n1.toFixed(3)} ⋅ sin(${theta_1_deg.toFixed(1)}°) = <b>${(n1 * Math.sin(theta_1_rad)).toFixed(3)}</b></div>
+                    <div>${n2.toFixed(3)} ⋅ sin(${theta_2_deg.toFixed(1)}°) = <b>${(n2 * Math.sin(theta_2_rad)).toFixed(3)}</b></div>
+                `;
+            }
+        }
+
+        // --- 8. 綁定事件監聽器 ---
+        angleSlider.addEventListener('input', draw);
+        selectN1.addEventListener('change', draw);
+        selectN2.addEventListener('change', draw);
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- 9. 初始執行 ---
+        populateSelectors();
+        resizeCanvas(); // 頁面載入時執行一次，設定正確的 canvas 大小並繪圖
+
+    </script>
+
+</body>
+</html>

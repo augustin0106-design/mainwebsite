@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEOM 未來城建造者 - 決定你的未來順序</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;500;700&family=Orbitron:wght@400;700&display=swap');
+
+        :root {
+            --neom-gold: #DAA520;
+            --neom-sand: #F4A460;
+            --neom-silver: #E0E0E0;
+            --neom-blue: #00BFFF;
+            --bg-dark: #121212;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --trial-color: #F59E0B; /* 試玩按鈕顏色 */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--neom-silver);
+            font-family: 'Noto Sans TC', sans-serif;
+            overflow: hidden; /* 防止捲動 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
+
+        /* 背景特效 */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); /* 沙漠夜空 */
+        }
+
+        /* 通用容器 */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: opacity 0.5s ease;
+            z-index: 10;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* 首頁樣式 */
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            color: var(--neom-blue);
+            text-shadow: 0 0 10px var(--neom-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--neom-gold);
+            margin-bottom: 2rem;
+            letter-spacing: 2px;
+        }
+
+        .story-box {
+            background: var(--glass-bg);
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--neom-silver);
+            max-width: 80%;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        select {
+            padding: 12px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 2px solid var(--neom-blue);
+            background: #222;
+            color: white;
+            margin-bottom: 20px;
+            cursor: pointer;
+            width: 250px;
+            appearance: none; /* 移除預設箭頭樣式以便自定義 */
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300BFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right .7em top 50%;
+            background-size: .65em auto;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .btn-start {
+            background: var(--neom-blue);
+            color: #000;
+            box-shadow: 0 0 15px var(--neom-blue);
+            width: 250px;
+        }
+        .btn-start:hover {
+            transform: scale(1.05);
+            background: white;
+        }
+
+        .btn-trial {
+            background: var(--trial-color);
+            color: #000;
+            box-shadow: 0 0 15px var(--trial-color);
+            width: 250px;
+        }
+        .btn-trial:hover {
+            transform: scale(1.05);
+            background: #FFD700;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--neom-silver);
+            color: var(--neom-silver);
+            font-size: 0.9rem;
+            padding: 10px 20px;
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* 分隔線 */
+        .divider {
+            margin: 15px 0;
+            font-size: 0.8rem;
+            color: #888;
+            display: flex;
+            align-items: center;
+            width: 250px;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #555;
+            margin: 0 10px;
+        }
+
+        /* 遊戲畫面 */
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 2px black;
+            pointer-events: none;
+        }
+
+        #game-canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        /* 題目 Modal */
+        #question-modal {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--neom-gold);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 90%;
+            width: 400px;
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(218, 165, 32, 0.3);
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 5px;
+            text-align: left;
+        }
+        .option-btn:hover {
+            background: #444;
+            border-color: var(--neom-blue);
+        }
+
+        /* 排行榜 */
+        #leaderboard-list {
+            max-height: 60vh;
+            overflow-y: auto;
+            width: 90%;
+            max-width: 500px;
+            text-align: left;
+        }
+
+        .leaderboard-item {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 5px;
+        }
+        .rank-high {
+            color: #ff4d4d; /* 低分反而顯眼，因為是懲罰機制 */
+            font-weight: bold;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--neom-blue);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* RWD */
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .story-box { font-size: 0.85rem; padding: 15px; }
+            #game-canvas { width: 100%; height: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 背景 Canvas (裝飾用) -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- 1. 首頁 -->
+    <div id="screen-home" class="screen">
+        <h1>NEOM 未來城建造者</h1>
+        <div class="subtitle">製作者：駿佾老師</div>
+        
+        <div class="story-box">
+            NEOM 是沙烏地阿拉伯西北部的跨境城市計畫，意為「新未來」。<br>
+            <strong>The Line</strong> 是一座零碳排放、無汽車的線性垂直城市。<br><br>
+            <span style="color:var(--neom-gold); font-size: 0.9em;">注意：遊戲積分越低者，代表建設失敗，需優先上台報告！</span>
+        </div>
+
+        <!-- 學生登入區 -->
+        <select id="player-select">
+            <option value="" disabled selected>請選擇你的名字...</option>
+        </select>
+        <button class="btn-start" onclick="app.startGame(false)">開始建造</button>
+
+        <div class="divider">OR</div>
+
+        <!-- 師長試玩區 -->
+        <button class="btn-trial" onclick="app.startGame(true)">師長/家長試玩 (不計分)</button>
+
+        <br>
+        <button class="btn-secondary" onclick="app.showLeaderboard()">查看報告順序</button>
+    </div>
+
+    <!-- 2. 遊戲畫面 -->
+    <div id="screen-game" class="screen hidden">
+        <div id="game-ui">層數: <span id="score-display">0</span></div>
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- 3. 題目 Modal (覆蓋在遊戲上) -->
+    <div id="screen-question" class="screen hidden" style="background: rgba(0,0,0,0.7);">
+        <div id="question-modal">
+            <div class="question-text" id="q-text">題目載入中...</div>
+            <div id="q-options"></div>
+        </div>
+    </div>
+
+    <!-- 4. 遊戲結束/結算 -->
+    <div id="screen-gameover" class="screen hidden">
+        <h1 style="color: #ff4d4d;">建設停止</h1>
+        <p>你的未來城蓋了 <span id="final-score" style="font-size: 2rem; color: var(--neom-blue);">0</span> 層</p>
+        <div id="upload-status">正在上傳數據... <div class="loader"></div></div>
+        <button class="btn-secondary" onclick="location.reload()">返回首頁</button>
+        <button class="btn-secondary" onclick="app.showLeaderboard()">查看報告順序</button>
+    </div>
+
+    <!-- 5. 排行榜 -->
+    <div id="screen-leaderboard" class="screen hidden">
+        <h2>報告順序決策榜</h2>
+        <p style="font-size: 0.9rem; color: #aaa;">(積分由低至高排序，低分者優先報告)</p>
+        <div id="leaderboard-loading" class="loader"></div>
+        <div id="leaderboard-list"></div>
+        <button class="btn-secondary" onclick="app.showHome()">返回首頁</button>
+    </div>
+
+    <script>
+        // --- 設定區 ---
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzjzGF7qZC4aTZ0bXwK3S0J8xflLlSBmmwzLbywPMiDL4I7mltzDXGYTHPAwbhVoHB5YA/exec'; // 修正為 exec (如果需要測試環境請改回 dev)
+        
+        // 移除字串中的 "師長試玩"，因為已有專用按鈕
+        const STUDENTS_STR = "劉妍希陳品伊吳昀霏楊子瑤王家蔚蔡尚倢侯宗佑廖采渝洪沛歆黃旭均陳薏安陳心安彭星瑔李昀臻廖文匯";
+
+        // --- 資料區 ---
+        const QUESTIONS = [
+            { q: "吉達(Jeddah)有什麼稱號？", options: ["紅海的新娘", "沙漠之星", "黃金之都"], a: 0 },
+            { q: "沙烏地阿拉伯的傳統待客之道，通常會先提供什麼？", options: ["阿拉伯咖啡與椰棗", "紅茶與餅乾", "可樂與漢堡"], a: 0 },
+            { q: "穆斯林每天需禮拜幾次？", options: ["3次", "5次", "7次"], a: 1 },
+            { q: "The Line 計畫的主要能源來源是什麼？", options: ["100% 再生能源", "石油", "核能"], a: 0 },
+            { q: "AI 在領導力中可以協助什麼？", options: ["數據驅動決策", "取代所有員工", "增加文書工作"], a: 0 },
+            { q: "沙烏地阿拉伯的首都是？", options: ["利雅德", "吉達", "麥加"], a: 0 },
+            { q: "AI 在教育中的應用不包括下列何者？", options: ["代替學生考試", "個性化學習", "自動評分"], a: 0 },
+            { q: "跨文化領導最需要具備什麼能力？", options: ["文化智商(CQ)", "絕對權威", "語言統一"], a: 0 },
+            { q: "沙烏地阿拉伯是什麼政體？", options: ["王國", "酋長國", "共和國"], a: 0 },
+            { q: "伊斯蘭教的兩大聖地是麥加與？", options: ["麥地那", "耶路撒冷", "杜拜"], a: 0 },
+            { q: "阿拉伯語中的「你好」怎麼說？", options: ["Marhaba", "Bonjour", "Hola"], a: 0 },
+            { q: "穆斯林結束齋戒月後的節日稱為？", options: ["開齋節", "宰牲節", "聖誕節"], a: 0 },
+            { q: "沙烏地阿拉伯現在正推動哪個願景計畫？", options: ["願景 2030", "工業 4.0", "沙漠綠洲計畫"], a: 0 },
+            { q: "沙烏地阿拉伯的主要經濟支柱傳統上是？", options: ["石油", "科技", "農業"], a: 0 },
+            { q: "沙烏地阿拉伯位於哪個半島？", options: ["阿拉伯半島", "巴爾幹半島", "伊比利半島"], a: 0 },
+            { q: "NEOM 計畫位於沙烏地的哪個方位？", options: ["西北部", "東南部", "中部"], a: 0 },
+            { q: "沙國首位進入太空的女太空人是？", options: ["Rayyanah Barnawi", "Reema bint Bandar", "Haifaa Al-Mansour"], a: 0 },
+            { q: "UBT 大學位於哪個城市？", options: ["吉達", "利雅德", "達曼"], a: 0 },
+            { q: "與外國友人交流時，哪種態度最重要？", options: ["尊重與開放", "堅持己見", "只說母語"], a: 0 },
+            { q: "The Line 城市的預計長度是多少？", options: ["170公里", "50公里", "500公里"], a: 0 }
+        ];
+
+        // --- 應用程式邏輯 ---
+        const app = {
+            playerName: "",
+            isTrial: false,
+            
+            init: function() {
+                this.parseStudents();
+                this.setupEvents();
+            },
+
+            parseStudents: function() {
+                const names = STUDENTS_STR.match(/.{1,3}/g);
+                const select = document.getElementById('player-select');
+                names.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.innerText = name;
+                    select.appendChild(opt);
+                });
+            },
+
+            setupEvents: function() {
+                window.addEventListener('resize', () => {
+                    if(game.isRunning) game.resize();
+                });
+            },
+
+            showScreen: function(id) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+                document.getElementById(id).classList.remove('hidden');
+            },
+
+            showHome: function() {
+                this.showScreen('screen-home');
+            },
+
+            // 新增：統一開始遊戲入口
+            startGame: function(isTrial) {
+                this.isTrial = isTrial;
+
+                if (isTrial) {
+                    this.playerName = "師長/家長試玩";
+                } else {
+                    const nameSelect = document.getElementById('player-select');
+                    if(!nameSelect.value) {
+                        alert("請先選擇你的名字！");
+                        return;
+                    }
+                    this.playerName = nameSelect.value;
+                }
+
+                // 進入遊戲
+                game.init();
+            },
+
+            showLeaderboard: function() {
+                this.showScreen('screen-leaderboard');
+                this.fetchLeaderboard();
+            },
+
+            uploadScore: function(score) {
+                if(!GAS_API_URL) {
+                    document.getElementById('upload-status').innerText = "未設定 API URL，無法上傳。";
+                    return;
+                }
+
+                // 如果是試玩，在顯示上告知，但仍可選擇是否傳送
+                // 這裡選擇傳送，但名稱固定，方便老師在後台篩選
+                const displayName = this.isTrial ? "師長/家長試玩" : this.playerName;
+
+                const data = {
+                    name: displayName,
+                    score: score,
+                    isTrial: this.isTrial // 增加標記，若後端有處理可使用
+                };
+
+                fetch(GAS_API_URL + "?action=save", {
+                    method: "POST",
+                    body: JSON.stringify(data),
+                    headers: { "Content-Type": "text/plain;charset=utf-8" }
+                })
+                .then(res => res.json())
+                .then(json => {
+                    if(this.isTrial) {
+                        document.getElementById('upload-status').innerText = "試玩結束！數據僅供參考。";
+                    } else if(json.status === "skipped") {
+                        document.getElementById('upload-status').innerText = "您已上傳過成績，本次僅作練習紀錄。";
+                    } else {
+                        document.getElementById('upload-status').innerText = "數據上傳成功！";
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('upload-status').innerText = "上傳連線異常 (但遊戲已完成)";
+                });
+            },
+
+            fetchLeaderboard: function() {
+                const list = document.getElementById('leaderboard-list');
+                const loading = document.getElementById('leaderboard-loading');
+                list.innerHTML = "";
+                loading.style.display = "block";
+
+                if(!GAS_API_URL) {
+                    loading.style.display = "none";
+                    list.innerHTML = "<p>未設定 API URL</p>";
+                    return;
+                }
+
+                fetch(GAS_API_URL + "?action=getLeaderboard")
+                .then(res => res.json())
+                .then(json => {
+                    loading.style.display = "none";
+                    if(json.status === "success") {
+                        if(json.data.length === 0) {
+                            list.innerHTML = "<p>目前尚無紀錄</p>";
+                            return;
+                        }
+                        let html = "";
+                        json.data.forEach((item, index) => {
+                            // 低分者排前面
+                            const isFirst = index === 0;
+                            html += `
+                                <div class="leaderboard-item ${isFirst ? 'rank-high' : ''}">
+                                    <span>#${index + 1} ${item.name}</span>
+                                    <span>${item.score} 層</span>
+                                </div>
+                            `;
+                        });
+                        list.innerHTML = html;
+                    } else {
+                        list.innerHTML = "<p>讀取錯誤</p>";
+                    }
+                })
+                .catch(err => {
+                    loading.style.display = "none";
+                    list.innerHTML = "<p>讀取失敗，請檢查 URL</p>";
+                });
+            }
+        };
+
+        // --- 遊戲邏輯 (The Line Builder) ---
+        const game = {
+            canvas: document.getElementById('game-canvas'),
+            ctx: null,
+            isRunning: false,
+            score: 0,
+            blocks: [],
+            currentBlock: null,
+            baseBlock: null,
+            direction: 1, 
+            speed: 2, 
+            blockHeight: 30,
+            initialWidth: 200,
+            cameraY: 0,
+            
+            isAnswering: false,
+            nextBlockCondition: 'normal',
+
+            init: function() {
+                // 不再檢查 playerName，因為由 app.startGame 處理
+                app.showScreen('screen-game');
+                
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                this.reset();
+                this.askQuestion(); 
+            },
+
+            resize: function() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                if(this.blocks.length > 0) {
+                    this.blocks[0].x = (this.canvas.width - this.blocks[0].width) / 2;
+                }
+            },
+
+            reset: function() {
+                this.score = 0;
+                this.blocks = [];
+                this.speed = 3;
+                this.cameraY = 0;
+                document.getElementById('score-display').innerText = this.score;
+
+                this.baseBlock = {
+                    x: (this.canvas.width - this.initialWidth) / 2,
+                    y: this.canvas.height - 50,
+                    width: this.initialWidth,
+                    height: 50,
+                    color: '#DAA520' 
+                };
+                this.blocks.push(this.baseBlock);
+            },
+
+            askQuestion: function() {
+                this.isAnswering = true;
+                document.getElementById('screen-question').classList.remove('hidden');
+                
+                const qData = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+                document.getElementById('q-text').innerText = `[問答] ${qData.q}`;
+                
+                const optionsDiv = document.getElementById('q-options');
+                optionsDiv.innerHTML = "";
+                
+                qData.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt;
+                    btn.onclick = () => {
+                        this.handleAnswer(idx === qData.a);
+                    };
+                    optionsDiv.appendChild(btn);
+                });
+            },
+
+            handleAnswer: function(isCorrect) {
+                document.getElementById('screen-question').classList.add('hidden');
+                app.showScreen('screen-game');
+                
+                this.isAnswering = false;
+                
+                if (isCorrect) {
+                    this.nextBlockCondition = 'normal';
+                } else {
+                    this.nextBlockCondition = 'unstable';
+                }
+                
+                this.spawnBlock();
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.loop();
+                }
+            },
+
+            spawnBlock: function() {
+                const prevBlock = this.blocks[this.blocks.length - 1];
+                let newWidth = prevBlock.width;
+                let newSpeed = 3 + (this.score * 0.5); 
+
+                if (this.nextBlockCondition === 'unstable') {
+                    newWidth = newWidth * 0.7; 
+                    newSpeed += 4; 
+                }
+
+                this.currentBlock = {
+                    x: 0,
+                    y: prevBlock.y - this.blockHeight,
+                    width: newWidth,
+                    height: this.blockHeight,
+                    color: this.nextBlockCondition === 'normal' ? '#00BFFF' : '#FF4500', 
+                    velocity: newSpeed
+                };
+                
+                if (Math.random() > 0.5) {
+                    this.currentBlock.x = -this.currentBlock.width;
+                    this.direction = 1;
+                } else {
+                    this.currentBlock.x = this.canvas.width;
+                    this.direction = -1;
+                }
+            },
+
+            placeBlock: function() {
+                if (!this.currentBlock || this.isAnswering) return;
+
+                const prevBlock = this.blocks[this.blocks.length - 1];
+                const block = this.currentBlock;
+
+                const dist = block.x - prevBlock.x;
+                const absDist = Math.abs(dist);
+
+                if (absDist >= prevBlock.width) {
+                    this.gameOver();
+                    return;
+                }
+                
+                let placedWidth = prevBlock.width - absDist;
+                
+                const overlapX = Math.max(block.x, prevBlock.x);
+                const overlapW = Math.min(block.x + block.width, prevBlock.x + prevBlock.width) - overlapX;
+                
+                this.currentBlock.x = overlapX;
+                this.currentBlock.width = overlapW;
+
+                this.blocks.push(this.currentBlock);
+                this.score++;
+                document.getElementById('score-display').innerText = this.score;
+                
+                if (this.blocks.length > 5) {
+                    this.cameraY += this.blockHeight;
+                }
+
+                this.currentBlock = null;
+                this.askQuestion();
+            },
+
+            update: function() {
+                if (!this.currentBlock || this.isAnswering) return;
+
+                this.currentBlock.x += this.currentBlock.velocity * this.direction;
+
+                if (this.currentBlock.x + this.currentBlock.width > this.canvas.width) {
+                    this.direction = -1;
+                } else if (this.currentBlock.x < 0) {
+                    this.direction = 1;
+                }
+            },
+
+            draw: function() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.ctx.save();
+                this.ctx.translate(0, this.cameraY);
+
+                this.blocks.forEach(b => {
+                    this.ctx.fillStyle = b.color;
+                    this.ctx.fillRect(b.x, b.y, b.width, b.height);
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.shadowColor = b.color;
+                    this.ctx.strokeStyle = '#fff';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(b.x, b.y, b.width, b.height);
+                    this.ctx.shadowBlur = 0;
+                });
+
+                if (this.currentBlock) {
+                    const b = this.currentBlock;
+                    this.ctx.fillStyle = b.color;
+                    this.ctx.fillRect(b.x, b.y, b.width, b.height);
+                }
+
+                this.ctx.restore();
+            },
+
+            loop: function() {
+                if (!game.isRunning) return;
+                game.update();
+                game.draw();
+                requestAnimationFrame(game.loop);
+            },
+
+            gameOver: function() {
+                this.isRunning = false;
+                app.showScreen('screen-gameover');
+                document.getElementById('final-score').innerText = this.score;
+                app.uploadScore(this.score);
+            }
+        };
+
+        // --- 輸入控制 ---
+        document.body.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && app.playerName && !game.isAnswering && game.currentBlock) {
+                game.placeBlock();
+            }
+        });
+
+        document.getElementById('game-canvas').addEventListener('mousedown', (e) => {
+            if (app.playerName && !game.isAnswering && game.currentBlock) {
+                game.placeBlock();
+            }
+        });
+        
+        document.getElementById('game-canvas').addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            if (app.playerName && !game.isAnswering && game.currentBlock) {
+                game.placeBlock();
+            }
+        }, {passive: false});
+
+
+        // --- 背景動畫 (Starfield/Dust) ---
+        const bgEffect = {
+            canvas: document.getElementById('bg-canvas'),
+            ctx: null,
+            particles: [],
+            init: function() {
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                for(let i=0; i<100; i++) this.particles.push(this.createParticle());
+                this.loop();
+            },
+            resize: function() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            },
+            createParticle: function() {
+                return {
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    size: Math.random() * 2,
+                    speedY: Math.random() * 0.5 + 0.1
+                }
+            },
+            loop: function() {
+                this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = 'white';
+                this.particles.forEach(p => {
+                    p.y -= p.speedY;
+                    if(p.y < 0) p.y = this.canvas.height;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                    this.ctx.fill();
+                });
+                requestAnimationFrame(() => this.loop());
+            }
+        };
+
+        // 初始化
+        app.init();
+        bgEffect.init();
+
+    </script>
+</body>
+</html>

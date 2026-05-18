@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光學反射與虛像互動實驗</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: white;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        canvas {
+            background-color: #000;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+        .controls-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 80%;
+            max-width: 600px;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 14px;
+            color: #ccc;
+        }
+        .highlight {
+            color: #ffff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="opticsCanvas"></canvas>
+   
+    <div class="controls-container">
+        <!-- 移除了同步狀態顯示 -->
+        <div class="label-row">
+            <span>0° (水平)</span>
+            <span id="angleDisplay" class="highlight">45°</span>
+            <span>180° (水平)</span>
+        </div>
+        <input type="range" id="angleSlider" min="0" max="180" value="45" step="1">
+        <div style="font-size: 12px; color: #888; margin-top: 5px;">
+            說明：調整滑桿改變板子角度。此版本為獨立網頁，僅供本地操作。
+        </div>
+    </div>
+
+<script>
+    // 移除了所有 Firebase 相關的 import
+   
+    // --- UI 元素 ---
+    const canvas = document.getElementById('opticsCanvas');
+    const ctx = canvas.getContext('2d');
+    const slider = document.getElementById('angleSlider');
+    const angleDisplay = document.getElementById('angleDisplay');
+    // 移除了 syncStatus 相關元素
+
+
+    // --- 核心邏輯變數 ---
+    let width, height;
+    let tableY, pivotX, screenX, eyePos;
+    const scaleFactor = 0.8;
+    const plateLength = 500 * scaleFactor;
+    const screenWidth = 100 * scaleFactor;
+   
+    // 狀態變數
+    let plateAngle = Math.PI / 4;
+   
+    let maxVirtualY = null;
+    let maxVirtualStartX = null;
+    let maxVirtualEndX = null;
+
+
+    // --- 繪圖與數學邏輯（與之前版本相同） ---
+
+    function updateDimensions() {
+        width = window.innerWidth * 0.95;
+        height = window.innerHeight * 0.75;
+       
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        tableY = height - (80 * scaleFactor);
+        const eyeMargin = 50;
+        const eyeToPivotDistance = 600 * scaleFactor;
+       
+        eyePos = { x: eyeMargin, y: tableY - (180 * scaleFactor) };
+        pivotX = eyePos.x + eyeToPivotDistance;
+        screenX = pivotX - (150 * scaleFactor);
+
+        if (pivotX > width - 50) {
+            pivotX = width - 50;
+            eyePos.x = pivotX - eyeToPivotDistance;
+            screenX = pivotX - (150 * scaleFactor);
+        }
+       
+        const angle45 = Math.PI / 4;
+        const pivot45 = { x: pivotX, y: tableY };
+        const plateTip45 = {
+            x: pivotX - plateLength * Math.cos(angle45),
+            y: tableY - plateLength * Math.sin(angle45)
+        };
+       
+        const screenHeight = 6;
+        const screenTopY = tableY - screenHeight;
+        const screenStart = { x: screenX - screenWidth/2, y: screenTopY };
+        const screenEnd = { x: screenX + screenWidth/2, y: screenTopY };
+
+        const virtualStartMax = getReflectionPoint(screenStart, pivot45, plateTip45);
+        const virtualEndMax = getReflectionPoint(screenEnd, pivot45, plateTip45);
+
+        maxVirtualY = virtualStartMax.y;
+        maxVirtualStartX = virtualStartMax.x;
+        maxVirtualEndX = virtualEndMax.x;
+
+        draw();
+    }
+   
+    function getReflectionPoint(p, lineP1, lineP2) {
+        const dx = lineP2.x - lineP1.x;
+        const dy = lineP2.y - lineP1.y;
+        const t = ((p.x - lineP1.x) * dx + (p.y - lineP1.y) * dy) / (dx * dx + dy * dy);
+        const projX = lineP1.x + t * dx;
+        const projY = lineP1.y + t * dy;
+        return { x: 2 * projX - p.x, y: 2 * projY - p.y };
+    }
+
+    function getIntersection(A, B, C, D) {
+        const c1 = A.x*B.y - A.y*B.x;
+        const c2 = C.x*D.y - C.y*D.x;
+        const det = (A.x - B.x)*(C.y - D.y) - (A.y - B.y)*(C.x - D.x);
+        if(det === 0) return null;
+       
+        const x = (c1*(C.x - D.x) - (A.x - B.x)*c2)/det;
+        const y = (c1*(C.y - D.y) - (A.y - B.y)*c2)/det;
+        return { x: x, y: y };
+    }
+
+    function getDistance(p1, p2) {
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+
+    function draw() {
+        if (!width || !height) return;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+
+        const plateTipX = pivotX - plateLength * Math.cos(plateAngle);
+        const plateTipY = tableY - plateLength * Math.sin(plateAngle);
+        const plateTip = { x: plateTipX, y: plateTipY };
+        const pivot = { x: pivotX, y: tableY };
+
+        // 1. 畫桌子
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, tableY);
+        ctx.lineTo(width, tableY);
+        ctx.stroke();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '14px Noto Sans TC, sans-serif';
+        ctx.fillText("桌面", 10, tableY + 20);
+
+        // 2. 畫螢幕
+        const screenHeight = 6;
+        const screenTopY = tableY - screenHeight;
+        const screenStart = { x: screenX - screenWidth/2, y: screenTopY };
+        const screenEnd = { x: screenX + screenWidth/2, y: screenTopY };
+       
+        ctx.fillStyle = '#AAEAFF';
+        ctx.fillRect(screenStart.x, screenTopY, screenWidth, screenHeight);
+       
+        ctx.strokeStyle = '#4444FF';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(screenStart.x, screenTopY, screenWidth, screenHeight);
+       
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText("螢幕", screenX - 15, tableY + 25);
+
+        // 3. 畫透明板子
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = 'rgba(180, 200, 255, 0.6)';
+        ctx.beginPath();
+        ctx.moveTo(pivot.x, pivot.y);
+        ctx.lineTo(plateTip.x, plateTip.y);
+        ctx.stroke();
+       
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.stroke();
+
+        // 標示角度
+        const degree = Math.round(plateAngle * 180 / Math.PI);
+        drawAngleArc(pivot, 30, Math.PI, Math.PI + plateAngle, '#FFFF00');
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillText(`${degree}°`, pivot.x - 40, pivot.y - 10);
+
+        // 4. 計算光路
+        const virtualStart = getReflectionPoint(screenStart, pivot, plateTip);
+        const virtualEnd = getReflectionPoint(screenEnd, pivot, plateTip);
+
+        const canSeeL = processRay(screenStart, virtualStart, pivot, plateTip, "L");
+        const canSeeR = processRay(screenEnd, virtualEnd, pivot, plateTip, "R");
+
+        // 5. 畫虛像 (Virtual Image)
+        // 檢查角度是否大於等於18度，且至少有一條光線能被看見
+        const minAngleRad = 18 * Math.PI / 180;
+        if (plateAngle >= minAngleRad && (canSeeL || canSeeR)) {
+            ctx.save();
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#555555';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(virtualStart.x, virtualStart.y);
+            ctx.lineTo(virtualEnd.x, virtualEnd.y);
+            ctx.stroke();
+            ctx.restore();
+
+            // 虛像文字
+            ctx.fillStyle = '#888888';
+            ctx.fillText("虛像", (virtualStart.x + virtualEnd.x)/2 - 15, (virtualStart.y + virtualEnd.y)/2 - 10);
+        }
+
+        // 5.5. 畫虛像最高位置標示 (45度時)
+        if (maxVirtualY !== null) {
+            ctx.save();
+            ctx.setLineDash([8, 3]);
+            ctx.strokeStyle = '#FF3333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(maxVirtualStartX, maxVirtualY);
+            ctx.lineTo(maxVirtualEndX, maxVirtualY);
+            ctx.stroke();
+           
+            ctx.fillStyle = '#FF3333';
+            ctx.font = '12px Arial';
+            ctx.fillText("最高虛像位置 (45°)", maxVirtualEndX + 5, maxVirtualY + 4);
+            ctx.restore();
+        }
+
+        // 6. 畫眼睛
+        drawEye(eyePos.x, eyePos.y);
+    }
+
+    function processRay(sourcePoint, virtualPoint, pivot, plateTip, label) {
+        const farPlatePoint = {
+            x: pivot.x - Math.cos(plateAngle) * 2000,
+            y: pivot.y - Math.sin(plateAngle) * 2000
+        };
+       
+        const reflectPoint = getIntersection(eyePos, virtualPoint, pivot, farPlatePoint);
+
+        if (!reflectPoint) return false;
+
+        const distFromPivot = getDistance(pivot, reflectPoint);
+        const buffer = 5;
+       
+        const vecPlate = { x: plateTip.x - pivot.x, y: plateTip.y - pivot.y };
+        const vecReflect = { x: reflectPoint.x - pivot.x, y: reflectPoint.y - pivot.y };
+        const dotProduct = vecPlate.x * vecReflect.x + vecPlate.y * vecReflect.y;
+
+        if (dotProduct < 0 || distFromPivot > plateLength + buffer) {
+            return false;
+        }
+
+        // 畫入射光 (白實線)
+        ctx.beginPath();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.moveTo(sourcePoint.x, sourcePoint.y);
+        ctx.lineTo(reflectPoint.x, reflectPoint.y);
+        ctx.stroke();
+        drawArrow(sourcePoint, reflectPoint);
+
+        // 畫反射光 (白實線 -> 進眼睛)
+        ctx.beginPath();
+        ctx.moveTo(reflectPoint.x, reflectPoint.y);
+        ctx.lineTo(eyePos.x, eyePos.y);
+        ctx.stroke();
+        drawArrow(reflectPoint, eyePos);
+
+        // 畫虛擬光路
+        ctx.save();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = '#888888';
+        ctx.beginPath();
+        ctx.moveTo(reflectPoint.x, reflectPoint.y);
+        ctx.lineTo(virtualPoint.x, virtualPoint.y);
+        ctx.stroke();
+        ctx.restore();
+
+        return true;
+    }
+
+    function drawArrow(from, to) {
+        const headlen = 8;
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const midX = (from.x + to.x) / 2;
+        const midY = (from.y + to.y) / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX - headlen * Math.cos(angle - Math.PI / 6), midY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX - headlen * Math.cos(angle + Math.PI / 6), midY - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.stroke();
+    }
+   
+    function drawAngleArc(center, radius, start, end, color) {
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, start, end);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    function drawEye(x, y) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, 12, Math.PI * 0.8, Math.PI * 2.2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x + 4, y, 4, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    // --- 事件監聽 (本地操作) ---
+   
+    slider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        plateAngle = val * Math.PI / 180;
+
+        // 本地更新 UI
+        angleDisplay.textContent = `${val}°`;
+        draw();
+    });
+
+    // 啟動
+    window.addEventListener('resize', updateDimensions);
+    updateDimensions();
+
+</script>
+</body>
+</html>
