@@ -1,3 +1,3 @@
 window.GOGOLAND_ANALYTICS = {
-  gaMeasurementId: "",
+  gaMeasurementId: "G-KVZ9JYYXW0",
 };
