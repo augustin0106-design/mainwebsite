@@ -70,6 +70,12 @@
     }
   }
 
+  function trackEvent(name, params = {}) {
+    if (typeof window.gtag !== 'function') return;
+    try { window.gtag('event', name, params); }
+    catch (e) { /* Analytics should never block the portal UI. */ }
+  }
+
   // ------------------------------------------------------------
   // 4. Utility: Color helpers
   // ------------------------------------------------------------
@@ -314,6 +320,12 @@
     }
     markActiveSim();
     if (els.workspace) els.workspace.scrollTop = 0;
+    trackEvent('simulation_open', {
+      simulation_id: sim.id,
+      simulation_title: sim.title,
+      category: cat?.name || '',
+      category_id: sim.category
+    });
   }
 
   function showLoading() {
@@ -378,7 +390,13 @@
   els.searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimer);
     const v = e.target.value;
-    searchTimer = setTimeout(() => renderSidebar(v), 120);
+    searchTimer = setTimeout(() => {
+      renderSidebar(v);
+      const term = v.trim();
+      if (term.length >= 2) {
+        trackEvent('search', { search_term: term });
+      }
+    }, 120);
   });
 
   // Keyboard shortcut: Cmd/Ctrl + K
