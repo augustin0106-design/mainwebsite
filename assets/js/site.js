@@ -273,6 +273,21 @@
   function setSidebarOpen(open) {
     els.appShell.dataset.sidebarOpen = open ? 'true' : 'false';
     els.sidebarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (isMobile()) {
+      els.sidebar.style.transform = open ? 'translateX(0)' : 'translateX(-110%)';
+      els.sidebar.style.opacity = open ? '1' : '0';
+      els.sidebar.style.pointerEvents = open ? 'auto' : 'none';
+      els.sidebar.style.visibility = open ? 'visible' : 'hidden';
+      els.sidebarScrim.style.opacity = open ? '1' : '0';
+      els.sidebarScrim.style.pointerEvents = open ? 'auto' : 'none';
+    } else {
+      els.sidebar.style.transform = '';
+      els.sidebar.style.opacity = '';
+      els.sidebar.style.pointerEvents = '';
+      els.sidebar.style.visibility = '';
+      els.sidebarScrim.style.opacity = '';
+      els.sidebarScrim.style.pointerEvents = '';
+    }
   }
 
   els.sidebarToggle.addEventListener('click', () => {
