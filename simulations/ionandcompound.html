@@ -7,10 +7,10 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -110,6 +110,27 @@
         // --- 設定區 ---
         // 您提供的 Google Apps Script 網址
         const GAS_URL = "https://script.google.com/macros/s/AKfycbx4wbjmEIp_51Q3skeEslZQ_ZRleVVISI_btrQv9ZmbS6ue_qobd4KY1GN7wMjEM22K/exec";
+
+        const withTimeout = (promise, timeoutMs = 20000) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            return {
+                signal: controller.signal,
+                done: promise(controller.signal).finally(() => clearTimeout(timer))
+            };
+        };
+
+        const fetchJson = async (url, options = {}) => {
+            const request = withTimeout((signal) => fetch(url, { ...options, signal }));
+            const response = await request.done;
+            const text = await response.text();
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!contentType.includes('application/json') && !text.trim().startsWith('[') && !text.trim().startsWith('{')) {
+                throw new Error('GAS did not return JSON');
+            }
+            return JSON.parse(text);
+        };
 
         // --- 資料設定 (基於上傳的PDF整理) ---
         const IONS_DB = [
@@ -290,11 +311,12 @@
 
             const fetchLeaderboard = () => {
                  // 讀取排行榜需要標準 CORS 支援
-                 fetch(GAS_URL)
-                .then(res => res.json())
+                 fetchJson(GAS_URL)
                 .then(data => {
                     // 假設回傳格式是 { data: [ {name, score, timestamp}, ... ] } 或是直接陣列
-                    const list = Array.isArray(data) ? data : (data.data || []);
+                    const list = (Array.isArray(data) ? data : (data.data || []))
+                        .filter(item => item && item.name && Number.isFinite(Number(item.score)))
+                        .map(item => ({ ...item, score: Number(item.score) }));
                     // 排序：秒數越少越好
                     list.sort((a, b) => a.score - b.score);
                     setLeaderboard(list);

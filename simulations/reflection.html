@@ -6,9 +6,9 @@
   <title>一段考後．理化心裡話 by駿佾老師</title>
   
   <!-- 引入 React 和 Babel -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
   
   <!-- 引入 Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -129,6 +129,50 @@
       </div>
     );
 
+    const requestJson = async (url, options = {}, timeoutMs = 25000) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        const text = await response.text();
+        const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!contentType.includes("application/json") && !text.trim().startsWith("{")) {
+          throw new Error("GAS did not return JSON");
+        }
+        return JSON.parse(text);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const buildFallbackAnalysis = (data) => {
+      const internalErrors = Object.entries(data.errors || {})
+        .filter(([key, value]) => key.startsWith("internal_") && Number(value) > 0)
+        .reduce((sum, [, value]) => sum + Number(value), 0);
+      const externalErrors = Object.entries(data.errors || {})
+        .filter(([key, value]) => key.startsWith("external_") && Number(value) > 0)
+        .reduce((sum, [, value]) => sum + Number(value), 0);
+
+      return [
+        "GAS/AI 連線暫時沒有成功，所以先給你一份本機版考後回饋。",
+        "",
+        `${data.name || "同學"}，你這次給自己的表現滿意度是 ${data.score}/10。這個分數不是評價你這個人，而是幫你定位目前的學習狀態。`,
+        data.emotions?.length
+          ? `你提到的情緒有：${data.emotions.join("、")}。情緒通常是在提醒我們：這件事對你有意義，所以值得被好好整理。`
+          : "你還沒有選擇情緒。下次可以先辨認自己的感覺，因為情緒會提醒你真正卡住的位置。",
+        "",
+        `從錯題歸因來看，內在因素約 ${internalErrors} 題，外在因素約 ${externalErrors} 題。最值得投資的是可控制的部分，例如讀題、概念釐清、公式熟練與檢查流程。`,
+        "",
+        "下一次可以採用「2 加 1 減」：",
+        `增加 1：${data.strategyPlus1 || "每次讀完一小段就用自己的話說一次重點"}`,
+        `增加 2：${data.strategyPlus2 || "錯題訂正時寫下錯因，而不是只抄正解"}`,
+        `減少 1：${data.strategyMinus1 || "減少只看答案、沒有重做的訂正方式"}`,
+        "",
+        "把考後反思變成下一次準備的地圖，你會比單純責備自己走得更遠。"
+      ].join("\n");
+    };
+
     // --- 主程式 ---
     function ExamReflectionApp() {
       // ▼▼▼ 請在這裡填入您的 Google Apps Script 網址 ▼▼▼
@@ -206,12 +250,11 @@
         setError("");
 
         try {
-          const response = await fetch(GAS_WEB_APP_URL, {
+          const data = await requestJson(GAS_WEB_APP_URL, {
             method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify(formData)
           });
-
-          const data = await response.json();
 
           if (data.status === 'success') {
             setSubmitted(true);
@@ -222,7 +265,9 @@
           }
         } catch (err) {
           console.error(err);
-          setError("連線失敗，請檢查網路狀況，再試一次看看！");
+          setSubmitted(true);
+          setAiResponse(buildFallbackAnalysis(formData));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
           setLoading(false);
         }

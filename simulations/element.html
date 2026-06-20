@@ -9,11 +9,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- React & ReactDOM (UMD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     
     <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 
     <!-- Firebase Compat SDKs (保留 Firebase 作為備用或未來擴充，若不使用可忽略) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -170,6 +170,23 @@
         ];
         
         const getRandomPraise = () => PRAISE_MESSAGES[Math.floor(Math.random() * PRAISE_MESSAGES.length)];
+
+        const fetchJson = async (url, options = {}, timeoutMs = 20000) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                const text = await response.text();
+                const contentType = response.headers.get('content-type') || '';
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!contentType.includes('application/json') && !text.trim().startsWith('[') && !text.trim().startsWith('{')) {
+                    throw new Error('GAS did not return JSON');
+                }
+                return JSON.parse(text);
+            } finally {
+                clearTimeout(timer);
+            }
+        };
 
         // --- COMPONENTS ---
 
@@ -442,13 +459,14 @@
                 setLoading(true);
                 setError(null);
                 try {
-                    const response = await fetch(GOOGLE_SCRIPT_URL);
-                    if (!response.ok) throw new Error("網路回應不正確");
-                    const data = await response.json();
+                    const data = await fetchJson(GOOGLE_SCRIPT_URL);
                     
                     // 從 GAS 的 doGet 獲取資料
                     // 資料結構預期為 Array of { date, playerName, gameType, score }
-                    const formattedData = data.map(item => ({
+                    const rows = Array.isArray(data) ? data : (data.data || []);
+                    const formattedData = rows
+                        .filter(item => item && item.playerName && Number.isFinite(Number(item.score)))
+                        .map(item => ({
                         ...item,
                         score: parseInt(item.score) || 0,
                         date: item.date || '' 
@@ -659,7 +677,7 @@
                         await fetch(GOOGLE_SCRIPT_URL, {
                             method: 'POST',
                             mode: 'no-cors', 
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: JSON.stringify({
                                 playerName: playerName,
                                 gameType: gameTypeName,

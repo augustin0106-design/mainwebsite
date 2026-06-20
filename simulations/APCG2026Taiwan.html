@@ -330,6 +330,23 @@
     <script>
         // --- 設定區 ---
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzjzGF7qZC4aTZ0bXwK3S0J8xflLlSBmmwzLbywPMiDL4I7mltzDXGYTHPAwbhVoHB5YA/exec'; // 修正為 exec (如果需要測試環境請改回 dev)
+
+        async function fetchJson(url, options = {}, timeoutMs = 20000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                const text = await response.text();
+                const contentType = response.headers.get("content-type") || "";
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!contentType.includes("application/json") && !text.trim().startsWith("{") && !text.trim().startsWith("[")) {
+                    throw new Error("GAS did not return JSON");
+                }
+                return JSON.parse(text);
+            } finally {
+                clearTimeout(timer);
+            }
+        }
         
         // 移除字串中的 "師長試玩"，因為已有專用按鈕
         const STUDENTS_STR = "劉妍希陳品伊吳昀霏楊子瑤王家蔚蔡尚倢侯宗佑廖采渝洪沛歆黃旭均陳薏安陳心安彭星瑔李昀臻廖文匯";
@@ -434,12 +451,11 @@
                     isTrial: this.isTrial // 增加標記，若後端有處理可使用
                 };
 
-                fetch(GAS_API_URL + "?action=save", {
+                fetchJson(GAS_API_URL + "?action=save", {
                     method: "POST",
                     body: JSON.stringify(data),
                     headers: { "Content-Type": "text/plain;charset=utf-8" }
                 })
-                .then(res => res.json())
                 .then(json => {
                     if(this.isTrial) {
                         document.getElementById('upload-status').innerText = "試玩結束！數據僅供參考。";
@@ -467,17 +483,20 @@
                     return;
                 }
 
-                fetch(GAS_API_URL + "?action=getLeaderboard")
-                .then(res => res.json())
+                fetchJson(GAS_API_URL + "?action=getLeaderboard")
                 .then(json => {
                     loading.style.display = "none";
                     if(json.status === "success") {
-                        if(json.data.length === 0) {
+                        const rows = Array.isArray(json.data) ? json.data
+                            .filter(item => item && item.name && Number.isFinite(Number(item.score)))
+                            .map(item => ({ ...item, score: Number(item.score) }))
+                            : [];
+                        if(rows.length === 0) {
                             list.innerHTML = "<p>目前尚無紀錄</p>";
                             return;
                         }
                         let html = "";
-                        json.data.forEach((item, index) => {
+                        rows.forEach((item, index) => {
                             // 低分者排前面
                             const isFirst = index === 0;
                             html += `

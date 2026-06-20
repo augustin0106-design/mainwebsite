@@ -6,9 +6,9 @@
   <title>心靈解憂雜貨店：換位思考練習</title>
   
   <!-- 引入 React 和 Babel -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
   
   <!-- 引入 Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -97,6 +97,41 @@
 
     const { Send, Heart, MessageCircle, User, Zap, Sparkles, Feather, ArrowRight, RefreshCw, Anchor, ArrowLeft, Loader2 } = Icons;
 
+    const requestJson = async (url, options = {}, timeoutMs = 25000) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        const text = await response.text();
+        const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!contentType.includes("application/json") && !text.trim().startsWith("{")) {
+          throw new Error("GAS did not return JSON");
+        }
+        return JSON.parse(text);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const buildFallbackResult = (data) => ({
+      otherPerspective: `如果我是${data.otherRole || "對方"}，我可能也有自己的擔心、壓力或期待。這不代表你的感受不重要，而是提醒我們：同一件事裡，雙方可能都在保護自己在乎的東西。`,
+      rootCause: data.conflictCore
+        ? `這次卡住的核心，可能和「${data.conflictCore}」有關。你可以先把它拆成兩層：表面上你們在爭一件事，深層裡可能是在確認信任、尊重、自由、安全感或被理解。`
+        : "這次衝突的核心，可能不是單一事件本身，而是雙方在信任、尊重、自由、安全感或被理解上的需要沒有被說清楚。",
+      teacherAdvice: [
+        "GAS/AI 連線暫時沒有成功，所以先給你一份本機版整理。",
+        "",
+        `你描述的事件是：「${data.event || "尚未填寫完整事件"}」`,
+        `你當下的感受包含：${data.emotions?.length ? data.emotions.join("、") : "還沒有選擇情緒"}`,
+        "",
+        "可以試著用這句話開頭：",
+        `「我不是想跟你作對，我是因為____而覺得____。我也想知道你當時最擔心的是什麼。」`,
+        "",
+        "先把對錯暫時放旁邊，改成一起找出彼此真正想守住的東西，通常就會比較有機會重新對話。"
+      ].join("\n")
+    });
+
     function App() {
       // ▼▼▼ 這裡已填入您提供的 GAS 網址 ▼▼▼
       const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby-g1ZYZPOZTTk4vbHfrvC-RQ-qxobDrlG7qqKmHud6mfhPJooSjLJ3PTwPYEz1PXmC/exec";
@@ -143,12 +178,11 @@
         try {
           // 使用 fetch 發送 POST 請求
           // text/plain 是為了避免跨域問題 (CORS)，GAS 會處理這類請求
-          const response = await fetch(GAS_WEB_APP_URL, {
+          const data = await requestJson(GAS_WEB_APP_URL, {
             method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify(formData)
           });
-          
-          const data = await response.json();
           
           if (data.status === 'success') {
             setResult(data.result);
@@ -158,7 +192,8 @@
           }
         } catch (err) {
           console.error(err);
-          setError("傳送失敗，請檢查網路連線後再試一次。");
+          setResult(buildFallbackResult(formData));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
           setLoading(false);
         }
