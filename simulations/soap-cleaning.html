@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧼 肥皂去汙原理 3D 互動模擬</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #FFF1DC;
+    --bg-2: #FFD3A5;
+    --primary: #FF6B6B;
+    --primary-dark: #E04E4E;
+    --secondary: #4ECDC4;
+    --accent: #FFD93D;
+    --blue: #5DADE2;
+    --yellow: #F4D03F;
+    --text-dark: #2C3E50;
+    --text-medium: #5D6D7E;
+    --text-light: #95A5A6;
+    --card-bg: rgba(255, 255, 255, 0.94);
+    --shadow-soft: 0 6px 24px rgba(180, 100, 60, 0.12);
+    --shadow-strong: 0 12px 36px rgba(180, 100, 60, 0.18);
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'M PLUS Rounded 1c', 'Noto Sans TC', system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    color: var(--text-dark);
+    user-select: none;
+  }
+
+  #canvas-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  #canvas-container canvas { display: block; }
+
+  /* === Top bar === */
+  .top-bar {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    background: var(--card-bg);
+    padding: 12px 32px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .top-bar h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--primary-dark);
+    letter-spacing: 0.5px;
+  }
+  .top-bar p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--text-medium);
+    font-weight: 500;
+  }
+
+  /* === Legend === */
+  .legend {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    z-index: 10;
+    background: var(--card-bg);
+    padding: 16px 18px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    min-width: 200px;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .legend.hidden {
+    opacity: 0;
+    transform: translateX(20px) scale(0.92);
+    pointer-events: none;
+  }
+  .legend h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-dark);
+    border-bottom: 2px dashed #F0DCC8;
+    padding-bottom: 7px;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+  .molecule-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 6px 0 4px;
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .legend-row:last-child { margin-bottom: 0; }
+  .legend-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+    position: relative;
+  }
+  .legend-dot.blue {
+    background: radial-gradient(circle at 32% 30%, #B8E0F0 0%, var(--blue) 65%, #3A8FC4 100%);
+  }
+  .legend-dot.yellow {
+    background: radial-gradient(circle at 32% 30%, #FFF1A8 0%, var(--yellow) 65%, #C9A41E 100%);
+  }
+  .legend-dot.tail {
+    width: 12px;
+    height: 30px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, var(--yellow), #D4B22A);
+  }
+  .legend-text strong {
+    display: block;
+    font-size: 13px;
+    color: var(--text-dark);
+    font-weight: 700;
+  }
+  .legend-text span {
+    font-size: 11px;
+    color: var(--text-medium);
+  }
+  .legend-divider {
+    height: 1px;
+    background: #F0DCC8;
+    margin: 8px 0;
+  }
+  .legend-tip {
+    font-size: 11px;
+    color: var(--text-light);
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+  .legend-tip kbd {
+    background: #F5E6D3;
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary-dark);
+  }
+
+  /* === Description card === */
+  .description-card {
+    position: fixed;
+    top: 100px;
+    left: 20px;
+    z-index: 10;
+    background: var(--card-bg);
+    padding: 20px 22px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-strong);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    width: 290px;
+    border: 3px solid rgba(255, 217, 178, 0.6);
+  }
+  .step-number-big {
+    font-size: 58px;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+    text-shadow: 0 3px 0 rgba(255, 107, 107, 0.2);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .step-number-big.bump {
+    animation: bump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes bump {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.25) rotate(-5deg); }
+    100% { transform: scale(1); }
+  }
+  .description-text h2 {
+    margin: 0 0 8px;
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--text-dark);
+  }
+  .description-text p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-medium);
+    font-weight: 500;
+  }
+
+  /* === Controls === */
+  .controls {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: var(--card-bg);
+    padding: 14px 22px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-strong);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .step-dots {
+    display: flex;
+    gap: 0;
+    align-items: center;
+  }
+  .step-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #ECE0CC;
+    color: #B5A48E;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+  }
+  .step-connector {
+    width: 24px;
+    height: 4px;
+    background: #ECE0CC;
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+  .step-dot:hover { transform: scale(1.1); }
+  .step-dot.active {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.2);
+    box-shadow: 0 4px 14px rgba(255, 107, 107, 0.45);
+  }
+  .step-dot.completed {
+    background: var(--secondary);
+    color: white;
+  }
+  .step-connector.completed { background: var(--secondary); }
+
+  .buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .ctrl-btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 999px;
+    background: white;
+    color: var(--text-dark);
+    cursor: pointer;
+    box-shadow: 0 3px 0 #E0D0BC, 0 5px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.12s;
+  }
+  .ctrl-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 0 #E0D0BC, 0 8px 18px rgba(0, 0, 0, 0.1);
+  }
+  .ctrl-btn:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #E0D0BC, 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+  .ctrl-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: 0 2px 0 #E0D0BC, 0 3px 8px rgba(0, 0, 0, 0.05);
+  }
+  .ctrl-btn.primary {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 3px 0 var(--primary-dark), 0 6px 14px rgba(255, 107, 107, 0.35);
+  }
+  .ctrl-btn.primary:hover:not(:disabled) {
+    box-shadow: 0 5px 0 var(--primary-dark), 0 8px 20px rgba(255, 107, 107, 0.45);
+  }
+  .ctrl-btn.primary:active:not(:disabled) {
+    box-shadow: 0 1px 0 var(--primary-dark), 0 2px 6px rgba(255, 107, 107, 0.3);
+  }
+  .ctrl-btn.play-btn {
+    background: var(--secondary);
+    color: white;
+    box-shadow: 0 3px 0 #3CA89F, 0 6px 14px rgba(78, 205, 196, 0.35);
+  }
+  .ctrl-btn.play-btn:hover:not(:disabled) {
+    box-shadow: 0 5px 0 #3CA89F, 0 8px 20px rgba(78, 205, 196, 0.45);
+  }
+  .ctrl-btn.play-btn:active:not(:disabled) {
+    box-shadow: 0 1px 0 #3CA89F, 0 2px 6px rgba(78, 205, 196, 0.3);
+  }
+  .ctrl-btn.play-btn.playing {
+    background: var(--accent);
+    color: var(--text-dark);
+    box-shadow: 0 3px 0 #D4B22A, 0 6px 14px rgba(244, 208, 63, 0.45);
+    animation: playPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes playPulse {
+    0%, 100% { box-shadow: 0 3px 0 #D4B22A, 0 6px 14px rgba(244, 208, 63, 0.45); }
+    50% { box-shadow: 0 3px 0 #D4B22A, 0 6px 20px rgba(244, 208, 63, 0.75); }
+  }
+
+  .settings-row {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-medium);
+    border-top: 2px dashed #F0DCC8;
+    padding-top: 9px;
+    width: 100%;
+    justify-content: center;
+    font-weight: 500;
+  }
+  .setting {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  input[type="range"] {
+    width: 90px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .toggle input[type="checkbox"] {
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+  #speed-value {
+    font-weight: 700;
+    color: var(--primary-dark);
+    min-width: 30px;
+  }
+
+  /* Loading overlay */
+  .loader {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.6s, visibility 0.6s;
+  }
+  .loader.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .loader .bubble {
+    font-size: 56px;
+    animation: bubbleFloat 1.6s ease-in-out infinite;
+  }
+  @keyframes bubbleFloat {
+    0%, 100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-14px) rotate(5deg); }
+  }
+  .loader p {
+    margin-top: 16px;
+    color: var(--primary-dark);
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  /* === Responsive === */
+  @media (max-width: 720px) {
+    .top-bar { padding: 10px 22px; }
+    .top-bar h1 { font-size: 18px; }
+    .top-bar p { font-size: 11px; }
+    .legend {
+      top: 80px;
+      right: 8px;
+      padding: 10px;
+      min-width: 0;
+      width: 130px;
+    }
+    .legend h3 { font-size: 11px; margin-bottom: 4px; padding-bottom: 4px; }
+    .molecule-svg { margin: 4px 0 2px; }
+    .legend-tip { font-size: 9px; line-height: 1.4; }
+    .legend-tip kbd { font-size: 9px; padding: 1px 4px; }
+    .description-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      top: 80px;
+      left: 8px;
+      right: auto;
+      width: calc(100% - 156px);
+      max-width: 240px;
+      padding: 10px 14px;
+    }
+    .step-number-big { font-size: 36px; margin-bottom: 0; flex-shrink: 0; }
+    .description-text h2 { font-size: 14px; margin-bottom: 3px; }
+    .description-text p { font-size: 11px; line-height: 1.45; }
+    .controls { padding: 12px 14px; }
+    .ctrl-btn { padding: 9px 12px; font-size: 12px; }
+    .step-dot { width: 28px; height: 28px; font-size: 12px; }
+    .step-connector { width: 16px; height: 3px; }
+    .settings-row { gap: 12px; font-size: 11px; flex-wrap: wrap; }
+    input[type="range"] { width: 70px; }
+    .buttons { flex-wrap: wrap; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+
+<!-- Loading -->
+<div class="loader" id="loader">
+  <div class="bubble">🫧</div>
+  <p>準備中...</p>
+</div>
+
+<!-- Top -->
+<header class="top-bar">
+  <h1>🧼 肥皂去汙原理</h1>
+  <p>3D 互動教學模擬</p>
+</header>
+
+<!-- Legend -->
+<aside class="legend" id="legend">
+  <h3>肥皂分子構造</h3>
+  <svg class="molecule-svg" viewBox="0 0 240 165" xmlns="http://www.w3.org/2000/svg">
+    <!-- Top label: hydrophilic head -->
+    <text x="50" y="16" font-size="13" font-weight="700" text-anchor="middle" fill="#3A8FC4" font-family="M PLUS Rounded 1c, sans-serif">親水端</text>
+    <text x="50" y="32" font-size="10" text-anchor="middle" fill="#5D6D7E" font-family="M PLUS Rounded 1c, sans-serif">喜歡水 💧</text>
+    <!-- Arrow from top label to head -->
+    <line x1="50" y1="40" x2="50" y2="58" stroke="#3A8FC4" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="46,58 54,58 50,64" fill="#3A8FC4"/>
+
+    <!-- Tail body (yellow rounded rectangle) -->
+    <rect x="58" y="88" width="128" height="18" rx="9" fill="#F4D03F" stroke="#C9A41E" stroke-width="2"/>
+    <!-- Tail tip ball -->
+    <circle cx="188" cy="97" r="11" fill="#F4D03F" stroke="#C9A41E" stroke-width="2"/>
+    <!-- Tail tip highlight -->
+    <ellipse cx="184" cy="93" rx="3" ry="2" fill="white" opacity="0.7"/>
+
+    <!-- Head (blue circle) -->
+    <circle cx="50" cy="97" r="26" fill="#5DADE2" stroke="#3A8FC4" stroke-width="2.5"/>
+    <!-- Head highlight -->
+    <ellipse cx="41" cy="87" rx="8" ry="5" fill="white" opacity="0.8"/>
+
+    <!-- Arrow from tail to bottom label -->
+    <line x1="125" y1="128" x2="125" y2="116" stroke="#C9A41E" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="121,116 129,116 125,110" fill="#C9A41E"/>
+    <!-- Bottom label: hydrophobic tail -->
+    <text x="125" y="145" font-size="13" font-weight="700" text-anchor="middle" fill="#A88515" font-family="M PLUS Rounded 1c, sans-serif">親油端</text>
+    <text x="125" y="160" font-size="10" text-anchor="middle" fill="#5D6D7E" font-family="M PLUS Rounded 1c, sans-serif">喜歡油 🛢️</text>
+  </svg>
+  <div class="legend-divider"></div>
+  <div class="legend-tip">
+    💡 <kbd>拖曳</kbd> 旋轉 · <kbd>滾輪</kbd> 縮放
+  </div>
+</aside>
+
+<!-- Description card -->
+<div class="description-card">
+  <div class="step-number-big" id="step-number">①</div>
+  <div class="description-text">
+    <h2 id="step-title">油漬附著</h2>
+    <p id="step-description">油漬牢牢黏在物體表面...</p>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="step-dots">
+    <div class="step-dot active" data-step="1">1</div>
+    <div class="step-connector" data-conn="1"></div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-connector" data-conn="2"></div>
+    <div class="step-dot" data-step="3">3</div>
+    <div class="step-connector" data-conn="3"></div>
+    <div class="step-dot" data-step="4">4</div>
+  </div>
+  <div class="buttons">
+    <button id="reset-btn" class="ctrl-btn">↻ 重置</button>
+    <button id="prev-btn" class="ctrl-btn">◀ 上一步</button>
+    <button id="play-btn" class="ctrl-btn play-btn">▶ 連續播放</button>
+    <button id="next-btn" class="ctrl-btn primary">下一步 ▶</button>
+  </div>
+  <div class="settings-row">
+    <div class="setting">
+      <span>⏱️ 速度</span>
+      <input type="range" id="speed-slider" min="0.4" max="2" step="0.1" value="1">
+      <span id="speed-value">1.0x</span>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="show-labels" checked>
+      <span>顯示分子標籤</span>
+    </label>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ===== Step content =====
+const STEP_TITLES = ['油漬附著', '肥皂分子登場', '包圍油漬', '沖洗帶離'];
+const STEP_NUMBERS = ['①', '②', '③', '④'];
+const STEP_DESC = [
+  '油漬牢牢黏在物體表面。因為水跟油不相溶，所以光用水沖洗也洗不掉。😢',
+  '肥皂分子出動！它的黃色「親油端」喜歡油，會主動插進油漬中。',
+  '越來越多肥皂分子加入，全部尾巴朝內、頭朝外，把油漬包成一顆球（叫做「微胞」🟠）。',
+  '微胞外層的藍色「親水端」喜歡水！用水一沖，整顆微胞就被帶走，物體就乾淨啦！✨'
+];
+
+// ===== State =====
+const state = {
+  currentStep: 1,
+  transitionT: 1,
+  duration: 1.8,
+  speedMultiplier: 1.0,
+  isPlaying: false,
+  playTimer: null,
+  stepPause: 1.8,  // seconds to pause on each step during auto-play
+};
+
+// ===== Three.js setup =====
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+
+// Background gradient texture
+function makeBgTexture() {
+  const c = document.createElement('canvas');
+  c.width = 2; c.height = 512;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#FFF1DC');
+  g.addColorStop(0.55, '#FFDDB8');
+  g.addColorStop(1, '#FFC7A0');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 2, 512);
+  return new THREE.CanvasTexture(c);
+}
+scene.background = makeBgTexture();
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(5.5, 4.2, 6.2);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+container.appendChild(renderer.domElement);
+
+// Camera controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 0.6;
+controls.zoomSpeed = 0.8;
+controls.minDistance = 4;
+controls.maxDistance = 13;
+controls.minPolarAngle = Math.PI * 0.08;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.enablePan = false;
+
+// ===== Lighting =====
+scene.add(new THREE.AmbientLight(0xFFFFFF, 0.65));
+
+const sun = new THREE.DirectionalLight(0xFFFFFF, 1.3);
+sun.position.set(4, 8, 5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -5;
+sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 5;
+sun.shadow.camera.bottom = -5;
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 25;
+sun.shadow.bias = -0.0004;
+sun.shadow.radius = 5;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0xFFE0B2, 0.4);
+fill.position.set(-5, 3, -4);
+scene.add(fill);
+
+const rim = new THREE.PointLight(0xFFB6C1, 0.7, 25);
+rim.position.set(0, 4, -6);
+scene.add(rim);
+
+// ===== Toon gradient =====
+function makeToonGradient() {
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 1;
+  const ctx = c.getContext('2d');
+  ['#5a5a5a', '#a8a8a8', '#d8d8d8', '#ffffff'].forEach((col, i) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(i, 0, 1, 1);
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.minFilter = THREE.NearestFilter;
+  t.magFilter = THREE.NearestFilter;
+  return t;
+}
+const toon = makeToonGradient();
+
+// ===== Materials =====
+const M = {
+  surface: new THREE.MeshToonMaterial({ color: 0xA8E6CF, gradientMap: toon }),
+  surfaceStripe: new THREE.MeshToonMaterial({ color: 0x82D6B7, gradientMap: toon }),
+  oil: new THREE.MeshToonMaterial({ color: 0x3D2419, gradientMap: toon }),
+  head: new THREE.MeshToonMaterial({ color: 0x5DADE2, gradientMap: toon }),
+  tail: new THREE.MeshToonMaterial({ color: 0xF4D03F, gradientMap: toon }),
+  water: new THREE.MeshToonMaterial({ 
+    color: 0x6DC5E8, gradientMap: toon,
+    transparent: true, opacity: 0.78
+  }),
+};
+
+// ===== Helpers =====
+const tmpV3 = new THREE.Vector3();
+const upVec = new THREE.Vector3(0, 1, 0);
+
+// ===== Surface =====
+function buildSurface() {
+  const g = new THREE.Group();
+
+  const baseGeo = new THREE.BoxGeometry(5, 0.45, 3.4);
+  const base = new THREE.Mesh(baseGeo, M.surface);
+  base.position.y = -0.225;
+  base.receiveShadow = true;
+  base.castShadow = true;
+  g.add(base);
+
+  // Cute fabric stripes
+  const stripeGeo = new THREE.BoxGeometry(5.02, 0.015, 0.12);
+  for (let i = -1; i <= 1; i++) {
+    const s = new THREE.Mesh(stripeGeo, M.surfaceStripe);
+    s.position.set(0, 0.005, i * 1.05);
+    g.add(s);
+  }
+
+  return g;
+}
+
+// ===== Oil =====
+function buildOil() {
+  const geo = new THREE.SphereGeometry(0.62, 40, 28);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const v = tmpV3.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const n = Math.sin(v.x * 3.7) * Math.cos(v.z * 3.2) * 0.13 +
+              Math.sin(v.x * 6 + v.z * 4) * 0.05;
+    v.multiplyScalar(1 + n);
+    if (v.y < 0) v.y *= 0.42;
+    v.x *= 1.35;
+    v.z *= 1.05;
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, M.oil);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+// ===== Soap molecule =====
+function buildMolecule() {
+  const g = new THREE.Group();
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 22), M.head);
+  head.position.y = 0.42;
+  head.castShadow = true;
+
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.75, 18), M.tail);
+  tail.position.y = -0.05;
+  tail.castShadow = true;
+
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 10), M.tail);
+  tip.position.y = -0.425;
+  tip.castShadow = true;
+
+  // Cute highlight on head (small white dot)
+  const hl = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
+  );
+  hl.position.set(-0.13, 0.55, 0.2);
+  hl.scale.set(1, 0.7, 0.5);
+
+  g.add(head, tail, tip, hl);
+  return g;
+}
+
+// ===== Water particles =====
+function buildWaterParticles(n) {
+  const g = new THREE.Group();
+  for (let i = 0; i < n; i++) {
+    const r = 0.11 + Math.random() * 0.09;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), M.water);
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 1.8 + Math.random() * 2.4;
+    const h = 0.6 + Math.random() * 3.8;
+    m.position.set(Math.cos(ang) * dist, h, Math.sin(ang) * dist);
+    m.userData = {
+      basePos: m.position.clone(),
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.5 + Math.random() * 0.9,
+      drift: 0.08 + Math.random() * 0.12
+    };
+    m.scale.setScalar(0);
+    g.add(m);
+  }
+  return g;
+}
+
+// ===== Build scene =====
+const surface = buildSurface();
+scene.add(surface);
+
+const oil = buildOil();
+oil.position.set(0, 0.32, 0);
+scene.add(oil);
+
+const N_MOL = 12;
+const molecules = [];
+for (let i = 0; i < N_MOL; i++) {
+  const m = buildMolecule();
+  m.scale.setScalar(0);
+  scene.add(m);
+  molecules.push(m);
+}
+
+const waterGroup = buildWaterParticles(22);
+scene.add(waterGroup);
+
+// ===== Step configurations =====
+function fibonacciSphere(count, radius, center) {
+  const out = [];
+  const phi = Math.PI * (Math.sqrt(5) - 1);
+  for (let i = 0; i < count; i++) {
+    const y = 1 - (i / (count - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const theta = phi * i;
+    const dir = new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r);
+    const pos = new THREE.Vector3(
+      center.x + dir.x * radius,
+      center.y + dir.y * radius,
+      center.z + dir.z * radius
+    );
+    const q = new THREE.Quaternion().setFromUnitVectors(upVec, dir);
+    out.push({ pos, quat: q });
+  }
+  return out;
+}
+
+const OIL_ON = new THREE.Vector3(0, 0.32, 0);
+const OIL_LIFTED = new THREE.Vector3(-1.7, 2.7, 0.4);
+
+function getStepConfig(step) {
+  const cfg = { oilPos: OIL_ON.clone(), mols: [], waterScale: 0, oilOpacity: 1 };
+
+  // Default hidden molecules - spread high above scene
+  for (let i = 0; i < N_MOL; i++) {
+    const a = (i / N_MOL) * Math.PI * 2 + 0.4;
+    cfg.mols.push({
+      pos: new THREE.Vector3(Math.cos(a) * 3.5, 5.5 + (i % 3) * 0.4, Math.sin(a) * 3.5),
+      quat: new THREE.Quaternion(),
+      scale: 0
+    });
+  }
+
+  if (step === 1) return cfg;
+
+  if (step === 2) {
+    const ACTIVE = 4;
+    for (let i = 0; i < ACTIVE; i++) {
+      const a = (i / ACTIVE) * Math.PI * 2 + 0.35;
+      const hd = 0.42;   // horizontal distance from oil center
+      const ht = 0.78;   // height above oil center
+      const pos = new THREE.Vector3(
+        OIL_ON.x + Math.cos(a) * hd,
+        OIL_ON.y + ht,
+        OIL_ON.z + Math.sin(a) * hd
+      );
+      // Tail points to oil center → molecule's +Y axis points outward from oil
+      const dir = new THREE.Vector3(
+        Math.cos(a) * 0.45,
+        0.9,
+        Math.sin(a) * 0.45
+      ).normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(upVec, dir);
+      cfg.mols[i] = { pos, quat: q, scale: 1 };
+    }
+    return cfg;
+  }
+
+  if (step === 3) {
+    const sphere = fibonacciSphere(N_MOL, 1.08, OIL_ON);
+    for (let i = 0; i < N_MOL; i++) {
+      cfg.mols[i] = { pos: sphere[i].pos, quat: sphere[i].quat, scale: 1 };
+    }
+    return cfg;
+  }
+
+  if (step === 4) {
+    cfg.oilPos = OIL_LIFTED.clone();
+    const sphere = fibonacciSphere(N_MOL, 1.08, OIL_LIFTED);
+    for (let i = 0; i < N_MOL; i++) {
+      cfg.mols[i] = { pos: sphere[i].pos, quat: sphere[i].quat, scale: 1 };
+    }
+    cfg.waterScale = 1;
+    return cfg;
+  }
+
+  return cfg;
+}
+
+// ===== Transition =====
+let currentCfg = getStepConfig(1);
+let startSnapshot = null;
+
+function snapshot() {
+  return {
+    oilPos: oil.position.clone(),
+    mols: molecules.map(m => ({
+      pos: m.position.clone(),
+      quat: m.quaternion.clone(),
+      scale: m.scale.x
+    })),
+    waterScale: waterGroup.children[0]?.scale.x ?? 0
+  };
+}
+
+function setStep(target, immediate = false) {
+  if (target < 1 || target > 4) return;
+  startSnapshot = snapshot();
+  currentCfg = getStepConfig(target);
+  state.currentStep = target;
+  state.transitionT = immediate ? 1 : 0;
+  if (immediate) applyConfig(currentCfg);
+  updateUI(true);
+}
+
+function applyConfig(cfg) {
+  oil.position.copy(cfg.oilPos);
+  molecules.forEach((m, i) => {
+    m.position.copy(cfg.mols[i].pos);
+    m.quaternion.copy(cfg.mols[i].quat);
+    m.scale.setScalar(cfg.mols[i].scale);
+  });
+  waterGroup.children.forEach(w => w.scale.setScalar(cfg.waterScale));
+}
+
+// Easing
+const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const easeOutBack = t => {
+  const c1 = 1.7, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
+// ===== Animation loop =====
+function update(dt) {
+  const time = performance.now() * 0.001;
+
+  // Water bobbing animation (always running, only visible when scaled up)
+  waterGroup.children.forEach(w => {
+    const u = w.userData;
+    w.position.y = u.basePos.y + Math.sin(time * u.speed + u.phase) * 0.18;
+    w.position.x = u.basePos.x + Math.cos(time * u.speed * 0.7 + u.phase) * u.drift;
+    w.position.z = u.basePos.z + Math.sin(time * u.speed * 0.6 + u.phase * 1.3) * u.drift * 0.7;
+  });
+
+  // Transition
+  if (state.transitionT < 1) {
+    state.transitionT = Math.min(1, state.transitionT + dt / (state.duration / state.speedMultiplier));
+    const t = easeInOutCubic(state.transitionT);
+
+    oil.position.lerpVectors(startSnapshot.oilPos, currentCfg.oilPos, t);
+
+    molecules.forEach((m, i) => {
+      const s = startSnapshot.mols[i];
+      const e = currentCfg.mols[i];
+      m.position.lerpVectors(s.pos, e.pos, t);
+      m.quaternion.slerpQuaternions(s.quat, e.quat, t);
+      const sc = s.scale + (e.scale - s.scale) * t;
+      m.scale.setScalar(sc);
+    });
+
+    // Water scale - delayed for satisfying entry
+    const wt = Math.max(0, (state.transitionT - 0.25) / 0.75);
+    const wts = startSnapshot.waterScale + (currentCfg.waterScale - startSnapshot.waterScale) * easeOutBack(wt);
+    waterGroup.children.forEach(w => w.scale.setScalar(Math.max(0, wts)));
+
+    if (state.transitionT >= 1) updateUI(false);
+  }
+
+  // Idle micelle bobbing in step 4
+  if (state.currentStep === 4 && state.transitionT >= 1) {
+    const bob = Math.sin(time * 1.1) * 0.09;
+    const rot = Math.sin(time * 0.4) * 0.04;
+    oil.position.y = currentCfg.oilPos.y + bob;
+    molecules.forEach((m, i) => {
+      if (currentCfg.mols[i].scale > 0) {
+        m.position.y = currentCfg.mols[i].pos.y + bob;
+        // Slight orbital sway
+        const base = currentCfg.mols[i].pos;
+        const localX = base.x - currentCfg.oilPos.x;
+        const localZ = base.z - currentCfg.oilPos.z;
+        m.position.x = currentCfg.oilPos.x + localX * Math.cos(rot) - localZ * Math.sin(rot);
+        m.position.z = currentCfg.oilPos.z + localX * Math.sin(rot) + localZ * Math.cos(rot);
+      }
+    });
+  }
+
+  // Idle oil pulse in step 1
+  if (state.currentStep === 1 && state.transitionT >= 1) {
+    const pulse = 1 + Math.sin(time * 1.5) * 0.015;
+    oil.scale.set(pulse, pulse * 0.98, pulse);
+  } else {
+    oil.scale.set(1, 1, 1);
+  }
+}
+
+// ===== UI =====
+const $ = id => document.getElementById(id);
+const prevBtn = $('prev-btn');
+const nextBtn = $('next-btn');
+const resetBtn = $('reset-btn');
+const speedSlider = $('speed-slider');
+const speedValue = $('speed-value');
+const showLabels = $('show-labels');
+const stepTitle = $('step-title');
+const stepDesc = $('step-description');
+const stepNum = $('step-number');
+const legend = $('legend');
+const dots = document.querySelectorAll('.step-dot');
+const connectors = document.querySelectorAll('.step-connector');
+
+function updateUI(bumpAnimation) {
+  stepTitle.textContent = STEP_TITLES[state.currentStep - 1];
+  stepDesc.textContent = STEP_DESC[state.currentStep - 1];
+  stepNum.textContent = STEP_NUMBERS[state.currentStep - 1];
+
+  if (bumpAnimation) {
+    stepNum.classList.remove('bump');
+    void stepNum.offsetWidth;
+    stepNum.classList.add('bump');
+  }
+
+  dots.forEach((d, i) => {
+    d.classList.remove('active', 'completed');
+    if (i + 1 < state.currentStep) d.classList.add('completed');
+    if (i + 1 === state.currentStep) d.classList.add('active');
+  });
+  connectors.forEach((c, i) => {
+    c.classList.toggle('completed', i + 1 < state.currentStep);
+  });
+
+  prevBtn.disabled = state.currentStep === 1;
+  nextBtn.disabled = state.currentStep === 4;
+  nextBtn.textContent = state.currentStep === 4 ? '已完成 ✓' : '下一步 ▶';
+}
+
+const playBtn = $('play-btn');
+
+// ===== Auto-play control =====
+function stopPlay() {
+  state.isPlaying = false;
+  if (state.playTimer) {
+    clearTimeout(state.playTimer);
+    state.playTimer = null;
+  }
+  playBtn.classList.remove('playing');
+  playBtn.textContent = '▶ 連續播放';
+}
+
+function startPlay() {
+  state.isPlaying = true;
+  playBtn.classList.add('playing');
+  playBtn.textContent = '⏸ 暫停播放';
+  // If at the end, restart from beginning so play feels meaningful
+  if (state.currentStep >= 4 && state.transitionT >= 1) {
+    setStep(1, true);
+  }
+  scheduleNextStep();
+}
+
+function scheduleNextStep() {
+  if (state.playTimer) clearTimeout(state.playTimer);
+  if (!state.isPlaying) return;
+  // Wait for any ongoing transition + reading pause
+  const remainingTransition = (1 - state.transitionT) * (state.duration / state.speedMultiplier);
+  const pause = state.stepPause / state.speedMultiplier;
+  const waitMs = Math.max(150, (remainingTransition + pause) * 1000);
+  state.playTimer = setTimeout(() => {
+    if (!state.isPlaying) return;
+    if (state.currentStep >= 4) {
+      // Loop: instant snap back to step 1
+      setStep(1, true);
+    } else {
+      setStep(state.currentStep + 1);
+    }
+    scheduleNextStep();
+  }, waitMs);
+}
+
+function togglePlay() {
+  if (state.isPlaying) stopPlay();
+  else startPlay();
+}
+
+// Manual actions stop auto-play
+prevBtn.addEventListener('click', () => {
+  stopPlay();
+  setStep(state.currentStep - 1);
+});
+nextBtn.addEventListener('click', () => {
+  stopPlay();
+  setStep(state.currentStep + 1);
+});
+// Reset: instantly snap to step 1 (always, even if already at step 1)
+resetBtn.addEventListener('click', () => {
+  stopPlay();
+  setStep(1, true);
+});
+dots.forEach(d => d.addEventListener('click', () => {
+  stopPlay();
+  setStep(parseInt(d.dataset.step));
+}));
+playBtn.addEventListener('click', togglePlay);
+
+speedSlider.addEventListener('input', e => {
+  state.speedMultiplier = parseFloat(e.target.value);
+  speedValue.textContent = state.speedMultiplier.toFixed(1) + 'x';
+  // Reschedule if playing so the new speed takes effect immediately
+  if (state.isPlaying) scheduleNextStep();
+});
+
+showLabels.addEventListener('change', e => {
+  legend.classList.toggle('hidden', !e.target.checked);
+});
+
+// Initial state
+applyConfig(getStepConfig(1));
+updateUI(false);
+
+// ===== Resize =====
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ===== Render loop =====
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Hide loader
+setTimeout(() => {
+  document.getElementById('loader').classList.add('hidden');
+}, 500);
+</script>
+</body>
+</html>

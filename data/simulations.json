@@ -6,10 +6,16 @@
   },
   "categories": [
     {
-      "id": "science",
-      "name": "科學模擬",
-      "icon": "flask-conical",
+      "id": "physics",
+      "name": "物理學習",
+      "icon": "orbit",
       "color": "#2563eb"
+    },
+    {
+      "id": "chemistry",
+      "name": "化學學習",
+      "icon": "flask-conical",
+      "color": "#0f9f8e"
     },
     {
       "id": "learning",
@@ -32,76 +38,147 @@
   ],
   "simulations": [
     {
-      "id": "circuitsimulator",
-      "category": "science",
-      "title": "電流物流模擬系統",
-      "description": "用物流類比電功率與電流，視覺化理解電路概念。",
-      "icon": "truck",
-      "url": "simulations/circuitsimulator.html",
-      "tags": ["電流", "電路", "功率"]
-    },
-    {
-      "id": "element",
-      "category": "science",
-      "title": "元素大師",
-      "description": "練習元素中文名稱、元素符號與週期表位置。",
-      "icon": "atom",
-      "url": "simulations/element.html",
-      "tags": ["元素", "化學", "週期表"]
-    },
-    {
-      "id": "ionandcompound",
-      "category": "science",
-      "title": "離子與化合物大師",
-      "description": "挑戰離子價數與電中性化合物組合。",
-      "icon": "flask-conical",
-      "url": "simulations/ionandcompound.html",
-      "tags": ["離子", "化合物", "化學"]
-    },
-    {
-      "id": "carbon",
-      "category": "science",
-      "title": "3D 碳同素異形體模擬",
-      "description": "觀察石墨、鑽石等碳結構，連結結構與性質。",
-      "icon": "boxes",
-      "url": "simulations/carbon.html",
-      "tags": ["碳", "石墨", "鑽石"]
-    },
-    {
-      "id": "earthquake",
-      "category": "science",
-      "title": "地震搖晃方向分析",
-      "description": "比較淺源、深源地震與不同地震波的振動模式。",
-      "icon": "activity",
-      "url": "simulations/earthquake.html",
-      "tags": ["地震", "地科", "波"]
-    },
-    {
-      "id": "hologram",
-      "category": "science",
-      "title": "浮空投影模擬",
-      "description": "探索反射、虛像與 Hologram 成像位置。",
-      "icon": "box",
-      "url": "simulations/hologram.html",
-      "tags": ["光學", "反射", "虛像"]
-    },
-    {
-      "id": "fishtail",
-      "category": "science",
-      "title": "平面鏡反射模擬器",
-      "description": "處理常見雙反射與魚尾題型的角度變化。",
-      "icon": "sun",
-      "url": "simulations/fishtail.html",
-      "tags": ["光學", "平面鏡", "反射"]
-    },
-    {
       "id": "snellslaw",
-      "category": "science",
+      "category": "physics",
       "title": "司乃耳定律",
       "description": "操作入射角、折射率與光速，觀察折射關係。",
       "icon": "waves",
       "url": "simulations/snellslaw.html",
-      "tags": ["光學", "折射", "司乃耳定律"]
+      "tags": [
+        "光學",
+        "折射",
+        "司乃耳定律"
+      ]
+    },
+    {
+      "id": "fishtail",
+      "category": "physics",
+      "title": "平面鏡反射模擬器",
+      "description": "處理常見雙反射與魚尾題型的角度變化。",
+      "icon": "sun",
+      "url": "simulations/fishtail.html",
+      "tags": [
+        "光學",
+        "平面鏡",
+        "反射"
+      ]
+    },
+    {
+      "id": "earthquake",
+      "category": "physics",
+      "title": "地震搖晃方向分析",
+      "description": "比較淺源、深源地震與不同地震波的振動模式。",
+      "icon": "activity",
+      "url": "simulations/earthquake.html",
+      "tags": [
+        "地震",
+        "地科",
+        "波"
+      ]
+    },
+    {
+      "id": "hologram",
+      "category": "physics",
+      "title": "浮空投影模擬",
+      "description": "探索反射、虛像與 Hologram 成像位置。",
+      "icon": "box",
+      "url": "simulations/hologram.html",
+      "tags": [
+        "光學",
+        "反射",
+        "虛像"
+      ]
+    },
+    {
+      "id": "incline-friction",
+      "category": "physics",
+      "title": "斜面上的木塊",
+      "description": "調整斜面角度與摩擦係數，觀察力的分解、最大靜摩擦與滑動狀態。",
+      "icon": "mountain",
+      "url": "simulations/incline-friction.html",
+      "tags": [
+        "力學",
+        "斜面",
+        "摩擦力"
+      ]
+    },
+    {
+      "id": "circuitsimulator",
+      "category": "physics",
+      "title": "電流物流模擬系統",
+      "description": "用物流類比電功率與電流，視覺化理解電路概念。",
+      "icon": "truck",
+      "url": "simulations/circuitsimulator.html",
+      "tags": [
+        "電流",
+        "電路",
+        "功率"
+      ]
+    },
+    {
+      "id": "carbon",
+      "category": "chemistry",
+      "title": "3D 碳同素異形體模擬",
+      "description": "觀察石墨、鑽石等碳結構，連結結構與性質。",
+      "icon": "boxes",
+      "url": "simulations/carbon.html",
+      "tags": [
+        "碳",
+        "石墨",
+        "鑽石"
+      ]
+    },
+    {
+      "id": "element",
+      "category": "chemistry",
+      "title": "元素大師",
+      "description": "練習元素中文名稱、元素符號與週期表位置。",
+      "icon": "atom",
+      "url": "simulations/element.html",
+      "tags": [
+        "元素",
+        "化學",
+        "週期表"
+      ]
+    },
+    {
+      "id": "saponification",
+      "category": "chemistry",
+      "title": "皂化反應",
+      "description": "以抽象分子場景呈現油脂與強鹼生成肥皂與甘油的反應過程。",
+      "icon": "flask-round",
+      "url": "simulations/saponification.html",
+      "tags": [
+        "化學",
+        "皂化",
+        "反應"
+      ]
+    },
+    {
+      "id": "soap-cleaning",
+      "category": "chemistry",
+      "title": "肥皂去污原理",
+      "description": "操作肥皂分子、油污與水的互動，理解親水端與親油端如何帶走污垢。",
+      "icon": "droplets",
+      "url": "simulations/soap-cleaning.html",
+      "tags": [
+        "化學",
+        "肥皂",
+        "界面活性劑"
+      ]
+    },
+    {
+      "id": "ionandcompound",
+      "category": "chemistry",
+      "title": "離子與化合物大師",
+      "description": "挑戰離子價數與電中性化合物組合。",
+      "icon": "flask-conical",
+      "url": "simulations/ionandcompound.html",
+      "tags": [
+        "離子",
+        "化合物",
+        "化學"
+      ]
     },
     {
       "id": "reflection",
@@ -110,7 +187,11 @@
       "description": "用心理學原理引導學生檢視考後學習策略。",
       "icon": "notebook-pen",
       "url": "simulations/reflection.html",
-      "tags": ["讀書策略", "反思", "考後檢討"]
+      "tags": [
+        "讀書策略",
+        "反思",
+        "考後檢討"
+      ]
     },
     {
       "id": "conflict",
@@ -119,7 +200,11 @@
       "description": "透過換位思考練習，理解衝突背後的需要與感受。",
       "icon": "heart-handshake",
       "url": "simulations/conflict.html",
-      "tags": ["情意", "換位思考", "衝突"]
+      "tags": [
+        "情意",
+        "換位思考",
+        "衝突"
+      ]
     },
     {
       "id": "christmasgame",
@@ -128,7 +213,11 @@
       "description": "班級活動與挑戰遊戲集合，適合節慶活動。",
       "icon": "gift",
       "url": "simulations/christmasgame.html",
-      "tags": ["活動", "遊戲", "節慶"]
+      "tags": [
+        "活動",
+        "遊戲",
+        "節慶"
+      ]
     },
     {
       "id": "apcg2026taiwan",
@@ -137,7 +226,11 @@
       "description": "以排序與決策情境引導學生思考未來城市建造。",
       "icon": "building-2",
       "url": "simulations/APCG2026Taiwan.html",
-      "tags": ["決策", "排序", "活動"]
+      "tags": [
+        "決策",
+        "排序",
+        "活動"
+      ]
     }
   ]
 }

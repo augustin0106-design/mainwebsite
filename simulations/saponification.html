@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>椰子油皂化反應｜3D 教學模擬</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #07101e;
+    --bg-mid: #0f1b30;
+    --surface: rgba(20, 32, 54, 0.72);
+    --surface-stroke: rgba(255, 220, 170, 0.14);
+    --ink: #f3ebd9;
+    --ink-dim: #a9b4c6;
+    --ink-faint: #6a7689;
+    --amber: #ffb066;
+    --amber-glow: #ffd29a;
+    --teal: #6ee0d2;
+    --teal-soft: #2a6f6e;
+    --rose: #ff7a7a;
+    --violet: #c9a2ff;
+    --grid: rgba(110, 224, 210, 0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: 'Geist', system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 25% 30%, rgba(255, 176, 102, 0.06), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 80% 80%, rgba(110, 224, 210, 0.05), transparent 60%),
+      linear-gradient(180deg, #07101e 0%, #050a14 100%);
+    z-index: -2;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 48px 48px;
+    background-position: -1px -1px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 100%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  #canvas-container {
+    position: fixed;
+    inset: 0;
+  }
+  canvas { display: block; }
+
+  .topbar {
+    position: fixed;
+    top: 22px; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .topbar .eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .topbar h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .topbar h1 em {
+    font-style: italic;
+    color: var(--amber-glow);
+  }
+  .topbar .subtitle {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+  }
+
+  .panel {
+    position: fixed;
+    background: var(--surface);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--surface-stroke);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    z-index: 5;
+  }
+
+  #info-panel {
+    top: 100px;
+    left: 24px;
+    width: 320px;
+    padding: 20px 22px;
+  }
+  #info-panel .step-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 12px;
+  }
+  #info-panel .step-tag .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber-glow);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  #info-panel h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  #info-panel .mechanism-name {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    margin-bottom: 14px;
+    letter-spacing: 0.04em;
+  }
+  #info-panel .desc {
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--ink-dim);
+  }
+  #info-panel .desc strong {
+    color: var(--amber-glow);
+    font-weight: 500;
+  }
+  #info-panel .desc em {
+    color: var(--teal);
+    font-style: normal;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.92em;
+  }
+
+  #equation-panel {
+    top: 100px;
+    right: 24px;
+    width: 300px;
+    padding: 18px 22px;
+  }
+  #equation-panel .label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 12px;
+  }
+  #equation-panel .equation {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.7;
+    text-align: center;
+    padding: 10px 0;
+  }
+  #equation-panel .equation .sub { font-size: 0.7em; vertical-align: -0.3em; color: var(--ink-dim); }
+  #equation-panel .equation .sup { font-size: 0.7em; vertical-align: 0.5em; }
+  #equation-panel .equation .arrow {
+    display: inline-block;
+    margin: 0 6px;
+    color: var(--teal);
+  }
+  #equation-panel .equation .plus { color: var(--ink-faint); margin: 0 4px; }
+  #equation-panel .equation .accent-amber { color: var(--amber); }
+  #equation-panel .equation .accent-rose { color: var(--rose); }
+  #equation-panel .equation .accent-violet { color: var(--violet); }
+  #equation-panel .progress-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(255, 220, 170, 0.12);
+  }
+  #equation-panel .progress-item {
+    text-align: center;
+  }
+  #equation-panel .progress-item .num {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    color: var(--amber-glow);
+    font-feature-settings: 'tnum';
+  }
+  #equation-panel .progress-item .lbl {
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 2px;
+  }
+
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--surface);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--surface-stroke);
+    border-radius: 999px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    z-index: 5;
+  }
+  .btn {
+    background: transparent;
+    border: 1px solid rgba(255, 220, 170, 0.15);
+    color: var(--ink);
+    font-family: 'Geist', sans-serif;
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover {
+    border-color: var(--amber);
+    color: var(--amber-glow);
+    background: rgba(255, 176, 102, 0.06);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--amber) 0%, #ff8a3d 100%);
+    border-color: transparent;
+    color: #1a0f00;
+    font-weight: 500;
+  }
+  .btn.primary:hover {
+    background: linear-gradient(135deg, var(--amber-glow) 0%, var(--amber) 100%);
+    color: #1a0f00;
+  }
+  .btn.btn-icon {
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 50%;
+    font-family: 'Geist Mono', monospace;
+    font-weight: 500;
+  }
+  .divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 220, 170, 0.15);
+  }
+  .slider-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.08em;
+  }
+  .slider-group .val {
+    color: var(--amber-glow);
+    min-width: 28px;
+    text-align: center;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 110px;
+    height: 4px;
+    background: rgba(255, 220, 170, 0.18);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--amber);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(255, 176, 102, 0.5);
+    transition: transform 0.15s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--amber);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 8px rgba(255, 176, 102, 0.5);
+  }
+
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(7, 16, 30, 0.95);
+    border: 1px solid var(--amber);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 12px));
+    transition: opacity 0.15s;
+    z-index: 100;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+  #tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 8px; height: 8px;
+    background: rgba(7, 16, 30, 0.95);
+    border-right: 1px solid var(--amber);
+    border-bottom: 1px solid var(--amber);
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .el {
+    color: var(--amber-glow);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  #tooltip .name {
+    color: var(--ink-dim);
+    margin-left: 6px;
+  }
+
+  .hint {
+    position: fixed;
+    bottom: 96px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  #legend {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    padding: 12px 14px;
+    z-index: 5;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+  }
+  #legend .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+  }
+  #legend .sw {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+  }
+  #legend .sw.c { background: #5a5a62; color: #5a5a62; }
+  #legend .sw.h { background: #f0f0f0; color: #f0f0f0; }
+  #legend .sw.o { background: #e85a5a; color: #e85a5a; }
+  #legend .sw.na { background: #c9a2ff; color: #c9a2ff; }
+
+  @media (max-width: 900px) {
+    #info-panel { width: 260px; left: 12px; top: 86px; padding: 14px; }
+    #equation-panel { width: 250px; right: 12px; top: 86px; padding: 14px; }
+    .topbar h1 { font-size: 20px; }
+    #legend { display: none; }
+    #controls { flex-wrap: wrap; border-radius: 18px; max-width: 92vw; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<header class="topbar">
+  <div class="eyebrow">Saponification of Coconut Oil · 3D Interactive</div>
+  <h1>椰子油 <em>皂化反應</em> 動態模擬</h1>
+  <div class="subtitle">trilaurin + 3 NaOH → glycerol + 3 sodium laurate</div>
+</header>
+
+<aside id="info-panel" class="panel">
+  <div class="step-tag"><span class="dot"></span><span id="step-label">階段 0</span></div>
+  <h2 id="step-title">準備就緒</h2>
+  <div class="mechanism-name" id="mechanism-name">機制：鹼性水解（皂化）</div>
+  <p class="desc" id="step-desc">點選「播放」開始。<strong>椰子油</strong>的三月桂酸甘油酯與 <strong>氫氧化鈉</strong> 反應，三條酯鍵會被逐一斷裂，產生<em>甘油</em>與三個<em>月桂酸鈉</em>（肥皂）。</p>
+</aside>
+
+<aside id="equation-panel" class="panel">
+  <div class="label">Reaction</div>
+  <div class="equation">
+    <span class="accent-amber">(C<span class="sub">11</span>H<span class="sub">23</span>COO)<span class="sub">3</span>C<span class="sub">3</span>H<span class="sub">5</span></span>
+    <span class="plus">+</span>
+    <span class="accent-violet">3 NaOH</span>
+    <br><span class="arrow">→</span><br>
+    <span class="accent-teal">C<span class="sub">3</span>H<span class="sub">5</span>(OH)<span class="sub">3</span></span>
+    <span class="plus">+</span>
+    <span class="accent-amber">3 C<span class="sub">11</span>H<span class="sub">23</span>COONa</span>
+  </div>
+  <div class="progress-row">
+    <div class="progress-item">
+      <div class="num" id="prog-cleaved">0</div>
+      <div class="lbl">已水解酯鍵</div>
+    </div>
+    <div class="progress-item">
+      <div class="num" id="prog-soap">0</div>
+      <div class="lbl">生成肥皂</div>
+    </div>
+    <div class="progress-item">
+      <div class="num" id="prog-glycerol">0</div>
+      <div class="lbl">甘油</div>
+    </div>
+  </div>
+</aside>
+
+<div id="legend" class="panel" style="background: var(--surface);">
+  <div class="row"><span class="sw c"></span>Carbon (C)</div>
+  <div class="row"><span class="sw h"></span>Hydrogen (H)</div>
+  <div class="row"><span class="sw o"></span>Oxygen (O)</div>
+  <div class="row"><span class="sw na"></span>Sodium (Na<sup>+</sup>)</div>
+</div>
+
+<div class="hint">滑鼠拖曳旋轉 · 滾輪/+− 縮放 · 空白鍵播放 · hover 原子查看元素</div>
+
+<nav id="controls">
+  <button class="btn primary" id="btn-play">▶ 播放</button>
+  <button class="btn" id="btn-step">下一步 →</button>
+  <button class="btn" id="btn-reset">↺ 重置</button>
+  <div class="divider"></div>
+  <div class="slider-group">
+    <span>速度</span>
+    <input type="range" id="speed" min="0.3" max="2.5" step="0.1" value="1">
+    <span class="val" id="speed-val">1.0×</span>
+  </div>
+  <div class="divider"></div>
+  <button class="btn btn-icon" id="btn-zoom-out" title="縮小">−</button>
+  <button class="btn btn-icon" id="btn-zoom-in" title="放大">+</button>
+</nav>
+
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const COLORS = {
+  C: 0x5a5a62,
+  H: 0xf0f0f0,
+  O: 0xe85a5a,
+  Na: 0xc9a2ff,
+  BOND: 0xc8b896,
+  BOND_HI: 0xffd29a,
+  POLAR: 0x6ee0d2,
+  DOUBLE: 0xffb066,
+};
+const RADII = { C: 0.42, H: 0.26, O: 0.40, Na: 0.55 };
+const BOND_R = 0.09;
+
+// Bond lengths (visual units, scaled for clarity)
+const L_CC = 1.55;
+const L_CH = 1.05;
+const L_CO = 1.45;
+const L_CdO = 1.30;   // C=O (slightly shorter)
+const L_OH = 1.00;
+const L_NaO = 2.20;
+
+// sp3 tetrahedral zigzag for the C12 lauric chain
+const ZIG_DX  = L_CC * 0.8165;   // ≈ 1.266
+const ZIG_AMP = L_CC * 0.2887;   // ≈ 0.448
+const H_PERP_Z = L_CH * 0.8165;  // H perpendicular to chain plane
+const H_PERP_Y = L_CH * 0.5774;  // H inward y-offset
+
+const T = {
+  APPROACH: 1500,
+  ATTACK:   1100,
+  CLEAVE:   1300,
+  DEPART:   1400,
+  PAIR:     1000,
+  SETTLE:   600,
+  FINAL:    1400,
+};
+
+// ============================================================
+//  SCENE SETUP
+// ============================================================
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x07101e, 28, 80);
+
+const camera = new THREE.PerspectiveCamera(
+  42, window.innerWidth / window.innerHeight, 0.1, 200
+);
+camera.position.set(0, 5, 22);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 6;
+controls.maxDistance = 60;
+controls.target.set(0, 0, 0);
+
+// Lighting
+const ambient = new THREE.AmbientLight(0x4a5a78, 0.55);
+scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xfff0d4, 1.1);
+keyLight.position.set(6, 10, 8);
+scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight(0x6ee0d2, 0.4);
+rimLight.position.set(-8, 4, -6);
+scene.add(rimLight);
+const fillLight = new THREE.PointLight(0xffb066, 0.5, 30);
+fillLight.position.set(4, 2, 4);
+scene.add(fillLight);
+
+// Subtle floor
+const floorGeom = new THREE.RingGeometry(12, 18, 64);
+const floorMat = new THREE.MeshBasicMaterial({
+  color: 0x6ee0d2, transparent: true, opacity: 0.04, side: THREE.DoubleSide
+});
+const floor = new THREE.Mesh(floorGeom, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -6;
+scene.add(floor);
+
+// ============================================================
+//  MATERIALS & GEOMETRY
+// ============================================================
+const atomMaterials = {
+  C: new THREE.MeshStandardMaterial({ color: COLORS.C, roughness: 0.4, metalness: 0.15 }),
+  H: new THREE.MeshStandardMaterial({ color: COLORS.H, roughness: 0.5, metalness: 0.0 }),
+  O: new THREE.MeshStandardMaterial({
+    color: COLORS.O, roughness: 0.35, metalness: 0.2,
+    emissive: 0x6a1a1a, emissiveIntensity: 0.2
+  }),
+  Na: new THREE.MeshStandardMaterial({
+    color: COLORS.Na, roughness: 0.3, metalness: 0.4,
+    emissive: 0x4a2a7a, emissiveIntensity: 0.3
+  }),
+};
+const bondMaterial = new THREE.MeshStandardMaterial({
+  color: COLORS.BOND, roughness: 0.55, metalness: 0.1
+});
+const polarBondMaterial = new THREE.MeshStandardMaterial({
+  color: COLORS.POLAR, roughness: 0.4, metalness: 0.2,
+  emissive: 0x2ea098, emissiveIntensity: 0.3,
+  transparent: true, opacity: 0.9
+});
+const doubleBondMaterial = new THREE.MeshStandardMaterial({
+  color: COLORS.DOUBLE, roughness: 0.4, metalness: 0.2,
+  emissive: 0xff7a2a, emissiveIntensity: 0.25
+});
+
+const atomGeoms = {
+  C: new THREE.SphereGeometry(RADII.C, 28, 22),
+  H: new THREE.SphereGeometry(RADII.H, 20, 16),
+  O: new THREE.SphereGeometry(RADII.O, 28, 22),
+  Na: new THREE.SphereGeometry(RADII.Na, 32, 24),
+};
+const bondGeom = new THREE.CylinderGeometry(BOND_R, BOND_R, 1, 14, 1, false);
+const thickBondGeom = new THREE.CylinderGeometry(BOND_R * 1.4, BOND_R * 1.4, 1, 14, 1, false);
+
+const elementLabels = {
+  C: '碳 Carbon',
+  H: '氫 Hydrogen',
+  O: '氧 Oxygen',
+  Na: '鈉 Sodium (Na⁺)',
+};
+
+function makeAtom(element, pos, label) {
+  const mat = atomMaterials[element].clone();
+  const mesh = new THREE.Mesh(atomGeoms[element], mat);
+  mesh.position.copy(pos);
+  mesh.userData.element = element;
+  mesh.userData.label = label || elementLabels[element] || element;
+  mesh.userData.isAtom = true;
+  return mesh;
+}
+
+function orientBond(mesh, p1, p2) {
+  const a = (p1.isVector3 ? p1 : new THREE.Vector3(p1.x, p1.y, p1.z));
+  const b = (p2.isVector3 ? p2 : new THREE.Vector3(p2.x, p2.y, p2.z));
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  mesh.position.copy(mid);
+  const dir = b.clone().sub(a);
+  const len = dir.length();
+  mesh.scale.set(1, len, 1);
+  const up = new THREE.Vector3(0, 1, 0);
+  mesh.quaternion.setFromUnitVectors(up, dir.normalize());
+}
+
+function makeBond(p1, p2, opts = {}) {
+  const mat = (opts.material || bondMaterial).clone();
+  const geom = opts.thick ? thickBondGeom : bondGeom;
+  const mesh = new THREE.Mesh(geom, mat);
+  orientBond(mesh, p1, p2);
+  mesh.userData.isBond = true;
+  return mesh;
+}
+
+// A bond that "tracks" its endpoints via getter functions, so it follows
+// moving atoms each frame. Call .update() in tween onUpdate.
+function makeTrackedBond(getP1, getP2, opts = {}) {
+  const b = makeBond(getP1(), getP2(), opts);
+  b.update = () => orientBond(b, getP1(), getP2());
+  return b;
+}
+
+// ============================================================
+//  EASING & TWEEN SYSTEM
+// ============================================================
+const easings = {
+  easeInOut: t => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2,
+  easeOut: t => 1 - Math.pow(1 - t, 3),
+  easeIn: t => t * t,
+};
+const activeTweens = [];
+function tween({ duration, onUpdate, onComplete, easing = easings.easeInOut }) {
+  return new Promise(resolve => {
+    activeTweens.push({
+      duration, elapsed: 0, onUpdate, easing,
+      onComplete: () => { onComplete?.(); resolve(); }
+    });
+  });
+}
+function updateTweens(dtMs) {
+  if (state.paused) return;
+  for (let i = activeTweens.length - 1; i >= 0; i--) {
+    const tw = activeTweens[i];
+    tw.elapsed += dtMs * state.speed;
+    const u = Math.min(tw.elapsed / tw.duration, 1);
+    const eu = tw.easing(u);
+    tw.onUpdate?.(eu, u);
+    if (u >= 1) {
+      activeTweens.splice(i, 1);
+      tw.onComplete?.();
+    }
+  }
+}
+function clearTweens() { activeTweens.length = 0; }
+
+// ============================================================
+//  CAMERA HELPERS
+// ============================================================
+function zoomCamera(factor) {
+  const startDist = camera.position.distanceTo(controls.target);
+  const endDist = Math.max(
+    controls.minDistance,
+    Math.min(controls.maxDistance, startDist * factor)
+  );
+  const duration = 280;
+  let elapsed = 0, lastT = performance.now();
+  function step(now) {
+    const dt = now - lastT; lastT = now;
+    elapsed += dt;
+    const u = Math.min(elapsed / duration, 1);
+    const eu = easings.easeOut(u);
+    const d = startDist + (endDist - startDist) * eu;
+    const dir = camera.position.clone().sub(controls.target).normalize();
+    camera.position.copy(controls.target).add(dir.multiplyScalar(d));
+    if (u < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function tweenCamera({ duration, targetPos, distance, easing = easings.easeInOut }) {
+  const startTarget = controls.target.clone();
+  const startDist  = camera.position.distanceTo(controls.target);
+  const endTarget  = targetPos ? targetPos.clone() : startTarget.clone();
+  const endDist    = (distance !== undefined) ? distance : startDist;
+  return tween({
+    duration, easing,
+    onUpdate: u => {
+      controls.target.lerpVectors(startTarget, endTarget, u);
+      const d = startDist + (endDist - startDist) * u;
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      camera.position.copy(controls.target).add(dir.multiplyScalar(d));
+    }
+  });
+}
+
+// ============================================================
+//  SPECIAL EFFECTS
+// ============================================================
+const sparkGeom = new THREE.SphereGeometry(0.08, 8, 6);
+
+function spawnParticleBurst(worldPos, count = 22, color = 0x9af0e0, speedScale = 1.0) {
+  const particles = [];
+  for (let i = 0; i < count; i++) {
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 1,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const p = new THREE.Mesh(sparkGeom, mat);
+    p.position.copy(worldPos);
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = (Math.random() - 0.5) * Math.PI * 0.9;
+    const speed = (1.0 + Math.random() * 1.6) * speedScale;
+    const v = new THREE.Vector3(
+      Math.cos(theta) * Math.cos(phi),
+      Math.sin(phi) * 0.8,
+      Math.sin(theta) * Math.cos(phi)
+    ).multiplyScalar(speed);
+    p.userData.startPos = worldPos.clone();
+    p.userData.endPos = worldPos.clone().add(v);
+    scene.add(p);
+    particles.push(p);
+  }
+  tween({
+    duration: 850, easing: easings.easeOut,
+    onUpdate: u => {
+      particles.forEach(p => {
+        p.position.lerpVectors(p.userData.startPos, p.userData.endPos, u);
+        p.material.opacity = 1 - u;
+        p.scale.setScalar(1 - u * 0.6);
+      });
+    },
+    onComplete: () => particles.forEach(p => { scene.remove(p); p.material.dispose(); })
+  });
+}
+
+function spawnFlash(worldPos, color = 0x6ee0d2, intensity = 5, duration = 550) {
+  const flash = new THREE.PointLight(color, 0, 7);
+  flash.position.copy(worldPos);
+  scene.add(flash);
+  tween({
+    duration, easing: easings.easeOut,
+    onUpdate: u => {
+      flash.intensity = u < 0.15 ? (u / 0.15) * intensity : intensity * (1 - (u - 0.15) / 0.85);
+    },
+    onComplete: () => scene.remove(flash)
+  });
+}
+
+// ============================================================
+//  MOLECULE BUILDERS
+// ============================================================
+
+function sign(v) { return v >= 0 ? 1 : -1; }
+
+// Build trilaurin (the triglyceride): central glycerol C3 backbone + 3 ester linkages + 3 C12 chains.
+// We orient three chains in a tripod-ish layout in 3D so all are visible.
+function makeTrilaurin(centerPos) {
+  const g = new THREE.Group();
+  g.userData.kind = 'trilaurin';
+
+  // Glycerol backbone: three C's in a zigzag along y axis (vertical)
+  // gC1 (top), gC2 (middle), gC3 (bottom)
+  const gC1 = makeAtom('C', new THREE.Vector3(0, L_CC * 0.8, 0), '甘油 C1');
+  const gC2 = makeAtom('C', new THREE.Vector3(ZIG_AMP * 1.2, 0, 0), '甘油 C2');
+  const gC3 = makeAtom('C', new THREE.Vector3(0, -L_CC * 0.8, 0), '甘油 C3');
+  g.add(gC1, gC2, gC3);
+  const gBackbone = [
+    makeBond(gC1.position, gC2.position),
+    makeBond(gC2.position, gC3.position),
+  ];
+  gBackbone.forEach(b => g.add(b));
+
+  // Each glycerol C gets: 1 ester O, 2 H (for terminal CH2's) or 1 H (for middle CH)
+  // We'll set up the 3 ester linkages emerging at different angles to fan out the 3 chains.
+  // Chain extension directions in 3D — fan out around +x hemisphere.
+  const chainSetups = [
+    { gC: gC1, dirVec: new THREE.Vector3( 1.0,  0.7, 0.0).normalize(), branch: 'top' },
+    { gC: gC2, dirVec: new THREE.Vector3( 1.0,  0.0, 0.0).normalize(), branch: 'mid' },
+    { gC: gC3, dirVec: new THREE.Vector3( 1.0, -0.7, 0.0).normalize(), branch: 'bot' },
+  ];
+
+  const linkages = [];   // info per ester linkage for animation reference
+  const allHydrogens = [];
+
+  chainSetups.forEach((setup, idx) => {
+    const { gC, dirVec, branch } = setup;
+    // Ester oxygen (single-bonded to glycerol C and to carbonyl C)
+    const esterO = makeAtom('O', gC.position.clone().add(dirVec.clone().multiplyScalar(L_CO)), '酯氧 O (–O–)');
+    // Carbonyl C (C1 of fatty chain)
+    const carbonylC = makeAtom('C', esterO.position.clone().add(dirVec.clone().multiplyScalar(L_CO)), '羰基碳 C=O');
+    // Double-bond O (C=O), placed perpendicular to chain dir in -z to keep planar look
+    // We pick a perpendicular vector in the dirVec/y-plane that is roughly "outward"
+    const perp = new THREE.Vector3(0, 0, 1).cross(dirVec).normalize(); // perpendicular to dirVec in xy
+    if (perp.lengthSq() < 0.1) perp.set(0, 1, 0);
+    const carbonylO = makeAtom('O', carbonylC.position.clone().add(perp.clone().multiplyScalar(L_CdO)), '羰基氧 C=O');
+
+    g.add(esterO, carbonylC, carbonylO);
+
+    // Bonds: gC-O (ester), O-C (ester to carbonyl C), C=O (double, shown as 2 cylinders)
+    const bondGCtoO = makeTrackedBond(() => gC.position, () => esterO.position);
+    const bondOtoC  = makeTrackedBond(() => esterO.position, () => carbonylC.position);
+    g.add(bondGCtoO, bondOtoC);
+
+    // C=O drawn as two parallel cylinders for the double bond
+    const cdoOffset = new THREE.Vector3(0, 0, 1).cross(dirVec).normalize().multiplyScalar(0.13);
+    if (cdoOffset.lengthSq() < 0.01) cdoOffset.set(0.13, 0, 0);
+    const cdoPerpForBond = cdoOffset.clone().cross(perp).normalize().multiplyScalar(0.13);
+    // simpler: just offset along chain dir perpendicular
+    const cdoOff = new THREE.Vector3().copy(dirVec).multiplyScalar(0.13); // along the chain
+    const cdo1 = makeTrackedBond(
+      () => carbonylC.position.clone().add(cdoOff),
+      () => carbonylO.position.clone().add(cdoOff),
+      { material: doubleBondMaterial, thick: true }
+    );
+    const cdo2 = makeTrackedBond(
+      () => carbonylC.position.clone().sub(cdoOff),
+      () => carbonylO.position.clone().sub(cdoOff),
+      { material: doubleBondMaterial, thick: true }
+    );
+    g.add(cdo1, cdo2);
+
+    // Build the C12 chain extending from carbonylC along dirVec
+    // We'll build atoms manually here so positions follow the dirVec direction in 3D.
+    const chainCarbons = [carbonylC]; // C1 (carbonyl) is already added
+    const chainHydrogens = [];
+    const chainBonds = [];
+
+    // Local basis: along = dirVec; up = perpendicular for zigzag amplitude (choose one in the chain plane)
+    const along = dirVec.clone();
+    // Pick "up" axis perpendicular to dirVec — use global Y projected
+    let up = new THREE.Vector3(0, 1, 0).sub(along.clone().multiplyScalar(along.dot(new THREE.Vector3(0,1,0)))).normalize();
+    if (up.lengthSq() < 0.01) up = new THREE.Vector3(1, 0, 0).cross(along).normalize();
+    // out-of-plane axis (for H's perpendicular to the chain plane)
+    const out = along.clone().cross(up).normalize();
+
+    for (let i = 1; i < 12; i++) {
+      const sgn = (i % 2 === 1) ? +1 : -1;  // alternate
+      const pos = carbonylC.position.clone()
+        .add(along.clone().multiplyScalar(i * ZIG_DX))
+        .add(up.clone().multiplyScalar(sgn * ZIG_AMP));
+      const c = makeAtom('C', pos, `脂肪鏈 C${i+1}`);
+      chainCarbons.push(c);
+      g.add(c);
+      const b = makeBond(chainCarbons[i-1].position, c.position);
+      g.add(b); chainBonds.push(b);
+    }
+    // Hydrogens for C2..C11 (CH2): 2 H each, perpendicular to chain plane (±out)
+    for (let i = 1; i < 11; i++) {
+      const c = chainCarbons[i];
+      const sgn = (i % 2 === 1) ? +1 : -1;
+      // H's offset toward "inward" direction (opposite of -up*sgn) for sp3 look
+      const yOff = up.clone().multiplyScalar(-sgn * H_PERP_Y);
+      const hUp = makeAtom('H', c.position.clone().add(yOff).add(out.clone().multiplyScalar( H_PERP_Z)));
+      const hDn = makeAtom('H', c.position.clone().add(yOff).add(out.clone().multiplyScalar(-H_PERP_Z)));
+      chainHydrogens.push(hUp, hDn);
+      allHydrogens.push(hUp, hDn);
+      g.add(hUp, hDn);
+      const bUp = makeBond(c.position, hUp.position);
+      const bDn = makeBond(c.position, hDn.position);
+      g.add(bUp, bDn);
+      chainBonds.push(bUp, bDn);                // ← collect so they transfer with the chain
+    }
+    // Terminal CH3 (i=11): 3 H
+    {
+      const i = 11;
+      const c = chainCarbons[i];
+      const sgn = (i % 2 === 1) ? +1 : -1;
+      const yOff = up.clone().multiplyScalar(-sgn * H_PERP_Y);
+      const hUp = makeAtom('H', c.position.clone().add(yOff).add(out.clone().multiplyScalar( H_PERP_Z)));
+      const hDn = makeAtom('H', c.position.clone().add(yOff).add(out.clone().multiplyScalar(-H_PERP_Z)));
+      const hEnd = makeAtom('H', c.position.clone().add(along.clone().multiplyScalar(L_CH)).add(up.clone().multiplyScalar(-sgn * 0.3)));
+      chainHydrogens.push(hUp, hDn, hEnd);
+      allHydrogens.push(hUp, hDn, hEnd);
+      g.add(hUp, hDn, hEnd);
+      const bUp = makeBond(c.position, hUp.position);
+      const bDn = makeBond(c.position, hDn.position);
+      const bEnd = makeBond(c.position, hEnd.position);
+      g.add(bUp, bDn, bEnd);
+      chainBonds.push(bUp, bDn, bEnd);          // ← collect for CH3 terminus too
+    }
+
+    linkages.push({
+      gC, esterO, carbonylC, carbonylO,
+      bondGCtoO, bondOtoC, cdoBonds: [cdo1, cdo2],
+      chainCarbons, chainHydrogens, chainBonds,
+      dirVec: dirVec.clone(), along, up, out,
+      branch,
+      cleaved: false,
+    });
+  });
+
+  // Glycerol H's: gC1 and gC3 are CH2 (each gets 2 H), gC2 is CH (gets 1 H)
+  // We need to attach them perpendicular to the gC-O bonds.
+  // For simplicity: place H's slightly "behind" each glycerol C in -x.
+  const gHydrogens = [];
+  const addGH = (gC, n) => {
+    const arr = [];
+    for (let k = 0; k < n; k++) {
+      // H positions: spread around the glycerol C opposite to its ester O direction.
+      // We'll just place them in -x with some y/z scatter for visual variety.
+      const angle = (k - (n-1)/2) * 0.8 + Math.PI; // spread around 180°
+      const offset = new THREE.Vector3(
+        Math.cos(angle) * L_CH * 0.95,
+        (k - (n-1)/2) * L_CH * 0.45,
+        Math.sin(angle) * L_CH * 0.6
+      );
+      const h = makeAtom('H', gC.position.clone().add(offset), '甘油 H');
+      arr.push(h);
+      gHydrogens.push(h);
+      g.add(h);
+      g.add(makeBond(gC.position, h.position));
+    }
+    return arr;
+  };
+  const gC1_Hs = addGH(gC1, 2);
+  const gC2_Hs = addGH(gC2, 1);
+  const gC3_Hs = addGH(gC3, 2);
+
+  g.userData.glycerol = { gC1, gC2, gC3, gBackbone, gC1_Hs, gC2_Hs, gC3_Hs };
+  g.userData.linkages = linkages;
+  g.userData.allHydrogens = allHydrogens;
+
+  g.position.copy(centerPos);
+  return g;
+}
+
+// Build a free NaOH (Na+ ion floating near OH-).
+// Returns { group, na, o, h, bondOH }
+function makeNaOH(centerPos) {
+  const g = new THREE.Group();
+  g.userData.kind = 'naoh';
+  const na = makeAtom('Na', new THREE.Vector3(-L_NaO / 2, 0, 0), 'Na⁺ (鈉離子)');
+  const o = makeAtom('O', new THREE.Vector3(L_NaO / 2, 0, 0), 'OH⁻ 的 O (氫氧根)');
+  const h = makeAtom('H', new THREE.Vector3(L_NaO / 2 + L_OH * 0.85, L_OH * 0.5, 0), 'OH⁻ 的 H');
+  g.add(na, o, h);
+
+  // OH covalent bond
+  const bondOH = makeTrackedBond(() => o.position, () => h.position, { material: polarBondMaterial });
+  // Na...O ionic "bond" — represent as a dashed feel via a thin highlighted cylinder
+  const bondNaO = makeTrackedBond(() => na.position, () => o.position, { material: polarBondMaterial });
+  bondNaO.material.opacity = 0.45;
+  g.add(bondOH, bondNaO);
+
+  g.userData.atoms = { na, o, h };
+  g.userData.bonds = { bondOH, bondNaO };
+  g.position.copy(centerPos);
+  return g;
+}
+
+// ============================================================
+//  STATE
+// ============================================================
+const state = {
+  isPlaying: false,
+  isAnimating: false,
+  paused: false,
+  speed: 1.0,
+  cleavedCount: 0,
+  soapCount: 0,
+  glycerolReleased: 0,
+};
+
+const ui = {
+  stepLabel: document.getElementById('step-label'),
+  stepTitle: document.getElementById('step-title'),
+  mechName:  document.getElementById('mechanism-name'),
+  stepDesc:  document.getElementById('step-desc'),
+  progCleaved:  document.getElementById('prog-cleaved'),
+  progSoap:     document.getElementById('prog-soap'),
+  progGlycerol: document.getElementById('prog-glycerol'),
+  btnPlay:   document.getElementById('btn-play'),
+  btnStep:   document.getElementById('btn-step'),
+  btnReset:  document.getElementById('btn-reset'),
+  speedSli:  document.getElementById('speed'),
+  speedVal:  document.getElementById('speed-val'),
+  btnZoomIn: document.getElementById('btn-zoom-in'),
+  btnZoomOut:document.getElementById('btn-zoom-out'),
+  tooltip:   document.getElementById('tooltip'),
+};
+
+function setStep(num, title, mech, desc) {
+  ui.stepLabel.textContent = `階段 ${num}`;
+  ui.stepTitle.textContent = title;
+  ui.mechName.textContent  = `機制：${mech}`;
+  ui.stepDesc.innerHTML    = desc;
+}
+function updateProgress() {
+  ui.progCleaved.textContent = state.cleavedCount;
+  ui.progSoap.textContent = state.soapCount;
+  ui.progGlycerol.textContent = state.glycerolReleased;
+}
+
+// ============================================================
+//  WORLD SETUP
+// ============================================================
+let trilaurin = makeTrilaurin(new THREE.Vector3(-2, 0, 0));
+scene.add(trilaurin);
+
+const naohMolecules = [];  // 3 NaOH ions floating around
+function spawnNaOHs() {
+  const positions = [
+    new THREE.Vector3( 12,  4, -1),
+    new THREE.Vector3( 14, -1,  2),
+    new THREE.Vector3( 12, -4, -2),
+  ];
+  positions.forEach((p, i) => {
+    const naoh = makeNaOH(p);
+    naoh.userData.bobPhase = i * 1.3;
+    naoh.userData.initialPos = p.clone();
+    naoh.rotation.set(
+      (Math.random() - 0.5) * 0.6,
+      (Math.random() - 0.5) * 0.6,
+      (Math.random() - 0.5) * 0.6
+    );
+    scene.add(naoh);
+    naohMolecules.push(naoh);
+  });
+}
+spawnNaOHs();
+
+const soapMolecules = [];
+let glycerolFinal = null;
+
+updateProgress();
+
+// ============================================================
+//  HOVER TOOLTIPS
+// ============================================================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredAtom = null;
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const atoms = [];
+  scene.traverse(o => { if (o.isMesh && o.userData.isAtom) atoms.push(o); });
+  const hits = raycaster.intersectObjects(atoms, false);
+  if (hits.length > 0) {
+    const atom = hits[0].object;
+    if (hoveredAtom !== atom) {
+      if (hoveredAtom) hoveredAtom.scale.setScalar(1);
+      hoveredAtom = atom;
+      atom.scale.setScalar(1.15);
+    }
+    const lbl = atom.userData.label || elementLabels[atom.userData.element] || atom.userData.element;
+    ui.tooltip.innerHTML = `<span class="el">${atom.userData.element}</span><span class="name">${lbl}</span>`;
+    ui.tooltip.style.left = e.clientX + 'px';
+    ui.tooltip.style.top = e.clientY + 'px';
+    ui.tooltip.classList.add('visible');
+    renderer.domElement.style.cursor = 'pointer';
+  } else {
+    if (hoveredAtom) { hoveredAtom.scale.setScalar(1); hoveredAtom = null; }
+    ui.tooltip.classList.remove('visible');
+    renderer.domElement.style.cursor = 'grab';
+  }
+});
+renderer.domElement.addEventListener('mouseleave', () => {
+  if (hoveredAtom) { hoveredAtom.scale.setScalar(1); hoveredAtom = null; }
+  ui.tooltip.classList.remove('visible');
+});
+
+// ============================================================
+//  ANIMATION SEQUENCE
+// ============================================================
+async function intro() {
+  setStep(
+    'INTRO',
+    `認識反應物`,
+    `鹼性水解（皂化）`,
+    `中央是椰子油的主要成分 <strong>三月桂酸甘油酯</strong>：甘油骨架接著三條 12 碳長鏈 (C<sub>11</sub>H<sub>23</sub>COO–)。 周圍有三個 <strong>NaOH</strong> 解離成 Na<sup>+</sup> 與 OH<sup>–</sup>，等待攻擊酯鍵。`
+  );
+  // Slow orbit-like reveal — gentle camera arc
+  await tweenCamera({
+    duration: 2000,
+    targetPos: new THREE.Vector3(0, 0, 0),
+    distance: 24,
+    easing: easings.easeInOut,
+  });
+}
+
+// Cleave the i-th ester linkage. i = 0, 1, 2
+async function cleaveLinkage(i) {
+  const linkage = trilaurin.userData.linkages[i];
+  if (linkage.cleaved) return;
+  const branchName = ['上方', '中間', '下方'][i];
+
+  // Before the first cleavage, smoothly rotate trilaurin back to identity so
+  // subsequent world-coord calculations are stable.
+  if (i === 0 && trilaurin.rotation.y !== 0) {
+    const startQuat = trilaurin.quaternion.clone();
+    const endQuat = new THREE.Quaternion();
+    await tween({
+      duration: 600,
+      onUpdate: u => {
+        trilaurin.quaternion.slerpQuaternions(startQuat, endQuat, u);
+      }
+    });
+    trilaurin.rotation.set(0, 0, 0);
+  }
+
+  // --- Pick a NaOH (closest to this linkage's carbonyl C) ---
+  const carbonylWorldPos = new THREE.Vector3();
+  linkage.carbonylC.getWorldPosition(carbonylWorldPos);
+  let nearestNaOH = null, nearestIdx = -1, minDist = Infinity;
+  naohMolecules.forEach((naoh, idx) => {
+    if (naoh.userData.used) return;
+    const d = naoh.position.distanceTo(carbonylWorldPos);
+    if (d < minDist) { minDist = d; nearestNaOH = naoh; nearestIdx = idx; }
+  });
+  if (!nearestNaOH) return;
+  nearestNaOH.userData.used = true;
+
+  // --- PHASE A: Approach ---
+  setStep(
+    `${i + 1}A`,
+    `OH⁻ 接近酯鍵 (${branchName})`,
+    `鹼性水解（皂化）`,
+    `<strong>OH<sup>–</sup></strong> 帶負電，被酯基的 <strong>羰基碳 (C=O)</strong> 吸引。Na<sup>+</sup> 跟著漂過來，準備在新生成的羧酸根上配對。`
+  );
+
+  // Target: OH- positioned next to carbonylC (along the perp axis, opposite the C=O)
+  // We want OH to come from the "out" side of the chain plane.
+  const targetOHPos = carbonylWorldPos.clone()
+    .add(linkage.out.clone().multiplyScalar(L_CO * 1.4));
+  // Na should hover nearby but slightly farther
+  const targetNaPos = carbonylWorldPos.clone()
+    .add(linkage.out.clone().multiplyScalar(L_CO * 2.6))
+    .add(linkage.up.clone().multiplyScalar(0.5));
+
+  // Camera focus on this linkage
+  const focusPos = carbonylWorldPos.clone();
+  tweenCamera({
+    duration: T.APPROACH,
+    targetPos: focusPos,
+    distance: 13,
+  });
+
+  // Move the whole NaOH group toward target — but we want to detach Na and OH
+  // so they can move independently later. For approach, animate the group.
+  const naohStartPos = nearestNaOH.position.clone();
+  const naohStartQuat = nearestNaOH.quaternion.clone();
+  // Decide a target for the group center such that the O atom lands near targetOHPos
+  // O is at local (+L_NaO/2, 0, 0); for now we just move group center to halfway between targetOH and targetNa
+  const groupTarget = targetOHPos.clone().lerp(targetNaPos, 0.4);
+  // Re-orient: O should point toward carbonyl, so rotate the group so its +x axis points from group center to carbonyl
+  // We'll use lookAt: temporarily place a helper.
+  const helper = new THREE.Object3D();
+  helper.position.copy(groupTarget);
+  helper.lookAt(carbonylWorldPos);
+  // OrbitControls/three lookAt makes -z face target; we want local +x face target.
+  // Apply a rotation: rotate -90° about y after lookAt to align +x with target.
+  helper.rotateY(-Math.PI / 2);
+  const endQuat = helper.quaternion.clone();
+
+  await tween({
+    duration: T.APPROACH,
+    onUpdate: u => {
+      nearestNaOH.position.lerpVectors(naohStartPos, groupTarget, u);
+      nearestNaOH.quaternion.slerpQuaternions(naohStartQuat, endQuat, u);
+    }
+  });
+
+  // --- PHASE B: Attack & cleavage prep ---
+  setStep(
+    `${i + 1}B`,
+    `OH⁻ 攻擊羰基碳`,
+    `鹼性水解（皂化）`,
+    `OH<sup>–</sup> 的氧原子帶著一對電子，攻擊 <em>δ+</em> 的羰基碳。緊接著 C–O 酯鍵被推開——這條長鏈將整段斷下來。`
+  );
+
+  // Detach Na, O, H from the NaOH group, attaching them to the scene at their current world positions
+  const naoh = nearestNaOH;
+  const naAtom = naoh.userData.atoms.na;
+  const ohO    = naoh.userData.atoms.o;
+  const ohH    = naoh.userData.atoms.h;
+  const ohBond_visual = naoh.userData.bonds.bondOH;
+  const naoBond_visual = naoh.userData.bonds.bondNaO;
+
+  // Compute world positions BEFORE detaching
+  const naW = new THREE.Vector3(); naAtom.getWorldPosition(naW);
+  const ohOW = new THREE.Vector3(); ohO.getWorldPosition(ohOW);
+  const ohHW = new THREE.Vector3(); ohH.getWorldPosition(ohHW);
+
+  scene.remove(naoh);
+  naAtom.position.copy(naW);
+  ohO.position.copy(ohOW);
+  ohH.position.copy(ohHW);
+  scene.add(naAtom, ohO, ohH);
+
+  // Dispose old bonds' materials (geometries are SHARED globals — never dispose those)
+  ohBond_visual.material?.dispose?.();
+  naoBond_visual.material?.dispose?.();
+  // (the meshes were children of naoh, which is removed — no need to scene.remove)
+
+  // New tracked bonds in the scene
+  const newOHbond = makeTrackedBond(() => ohO.position, () => ohH.position, { material: polarBondMaterial });
+  scene.add(newOHbond);
+
+  // OH⁻ moves to bond directly with carbonyl C (the new C-O bond forms)
+  // Final position for OH-O: at distance L_CO from carbonyl C along the -out direction (the approach side)
+  // After attack the carbonyl O leaves the ester (the original ester O goes back to glycerol).
+  // Actually: in saponification, OH adds to C=O, then the ester O–C bond breaks, leaving:
+  //   - glycerol now has –OH (taking H from where? from the attacking OH? Actually the H goes to the leaving O)
+  // Simplified mechanism for high school: OH replaces OR group → result: RCOO⁻ + HO–R'
+  // So: the OH oxygen bonds to the carbonyl C (replacing the ester linkage).
+  // The original ester O (linkage.esterO) leaves with the H from OH, becoming a new OH on glycerol.
+
+  // Move OH-oxygen to take ester O's spot near carbonyl C; move H over to ester O.
+  const finalOhOPos = carbonylWorldPos.clone().add(linkage.out.clone().multiplyScalar(-L_CO));
+  // Actually for clean visual, place the OH-O on the original ester O side (opposite of C=O perp):
+  // It's clearer to have the new RCOO- group flip so both O's face outward.
+  // Let's place the new OH-O at the original ester O position direction relative to carbonyl C.
+  const esterOWorldPos = new THREE.Vector3();
+  linkage.esterO.getWorldPosition(esterOWorldPos);
+  const carbonylToEsterO = esterOWorldPos.clone().sub(carbonylWorldPos).normalize();
+  // New OH-O takes a position on the same line as ester O, slightly closer
+  const newOhOFinal = carbonylWorldPos.clone().add(carbonylToEsterO.clone().multiplyScalar(L_CO));
+
+  // Push existing ester O slightly back toward glycerol (it'll soon migrate with the H)
+  const esterOPushBack = esterOWorldPos.clone().add(carbonylToEsterO.clone().multiplyScalar(-0.3));
+
+  // Capture starts
+  const ohO_start = ohO.position.clone();
+  const ohH_start = ohH.position.clone();
+  const naAtom_start = naAtom.position.clone();
+  const esterO_localStart = linkage.esterO.position.clone(); // local to trilaurin
+
+  // Brief flash + small particle puff at attack point
+  spawnFlash(carbonylWorldPos, 0xfff0aa, 3, 600);
+
+  await tween({
+    duration: T.ATTACK,
+    easing: easings.easeInOut,
+    onUpdate: u => {
+      // Move OH oxygen into bonding position with C
+      ohO.position.lerpVectors(ohO_start, newOhOFinal, u);
+      // OH hydrogen drifts toward ester O (it'll detach soon and join glycerol)
+      const targetHpos = esterOWorldPos.clone().add(new THREE.Vector3(0, L_OH * 0.6, 0));
+      ohH.position.lerpVectors(ohH_start, targetHpos, u);
+      // Update OH bond
+      newOHbond.update();
+      // Na drifts slightly closer
+      naAtom.position.lerpVectors(naAtom_start, targetNaPos, u);
+    }
+  });
+
+  // --- PHASE C: Cleavage — long chain departs with COO-, ester O picks up H to become glycerol OH ---
+  setStep(
+    `${i + 1}C`,
+    `酯鍵斷裂 — 長鏈分離`,
+    `鹼性水解（皂化）`,
+    `酯鍵 (C–O) 斷開！長鏈帶著 <strong>–COO<sup>–</sup></strong> 飄離甘油。剩下的 H 補到甘油的 O 上，使甘油多出一個 <strong>–OH</strong>。`
+  );
+
+  // Snapshot world positions of all chain atoms (so we can transfer them to a soap group)
+  // Chain atoms include: carbonylC, carbonylO, and all chainCarbons[1..11] and chainHydrogens
+  const chainAtomsWorld = [];
+  const chainAtomMeshes = [linkage.carbonylC, linkage.carbonylO, ...linkage.chainCarbons.slice(1), ...linkage.chainHydrogens];
+  chainAtomMeshes.forEach(a => {
+    const w = new THREE.Vector3();
+    a.getWorldPosition(w);
+    chainAtomsWorld.push({ mesh: a, world: w });
+  });
+  // Bonds that belong to the chain (the ones we created in linkage.chainBonds + the C=O bonds)
+  const chainBondsToTransfer = [...linkage.chainBonds, ...linkage.cdoBonds];
+
+  // Particle burst at the cleavage point (the carbonyl C — ester O bond)
+  const cleavagePoint = new THREE.Vector3().lerpVectors(carbonylWorldPos, esterOWorldPos, 0.5);
+  spawnFlash(cleavagePoint, 0xff9988, 4.5, 700);
+  spawnParticleBurst(cleavagePoint, 28, 0xffb89a, 1.2);
+
+  // Remove old bondOtoC (the C-O ester bond) from trilaurin — it's now broken
+  trilaurin.remove(linkage.bondOtoC);
+  linkage.bondOtoC.material?.dispose?.();
+  linkage.bondOtoC = null;
+
+  // Build a NEW C-O bond from carbonylC to newOhO (this is the new COO⁻ group's second O bond)
+  // (the C=O was carbonylO; now we add a single bond to ohO to make a carboxylate)
+  // Create a tracked bond using world coords for both endpoints
+  const newCOObond = makeTrackedBond(
+    () => { const w = new THREE.Vector3(); linkage.carbonylC.getWorldPosition(w); return w; },
+    () => { const w = new THREE.Vector3(); ohO.getWorldPosition(w); return w; },
+    { material: polarBondMaterial }
+  );
+  scene.add(newCOObond);
+
+  // Detach all chain atoms from trilaurin group and put them in a soap group attached to scene.
+  const soapGroup = new THREE.Group();
+  soapGroup.userData.kind = 'soap';
+  scene.add(soapGroup);
+
+  // Use attach() which preserves world transforms while reparenting.
+  chainAtomsWorld.forEach(({ mesh }) => soapGroup.attach(mesh));
+  chainBondsToTransfer.forEach(b => soapGroup.attach(b));
+  // newCOObond stays in scene as tracked bond (it follows world-positions of carbonylC and ohO)
+
+  // Add the OH oxygen (now part of COO-) to soapGroup
+  soapGroup.attach(ohO);
+
+  // Na atom — keep in scene for now (it'll pair to soap shortly)
+
+  // Now: ester O on the glycerol side picks up the H to become an OH on glycerol.
+  // We treat the original H (ohH) as the H that completes the new OH on glycerol.
+  // Use .attach() which preserves world position while reparenting.
+  trilaurin.attach(ohH);
+  ohH.userData.label = '甘油 –OH (氫)';
+
+  // Remove the old OH bond (between ohO and ohH); add a new bond from ester O to ohH
+  scene.remove(newOHbond);
+  newOHbond.material?.dispose?.();
+  const newGlycerolOHbond = makeTrackedBond(() => linkage.esterO.position, () => ohH.position);
+  trilaurin.add(newGlycerolOHbond);
+  linkage.esterO.userData.label = '甘油 –OH (氧)';
+
+  // Update label on the previously-double-bonded carbonyl O and the new bonded O
+  linkage.carbonylO.userData.label = '羧酸根 O (COO⁻)';
+  ohO.userData.label = '羧酸根 O (COO⁻)';
+
+  // Animate: chain (soapGroup) drifts away from glycerol, with a slight tumble
+  // Direction: along linkage.dirVec (away from glycerol)
+  const departVec = linkage.dirVec.clone().multiplyScalar(8);
+  // Random side offset to spread the three soaps in 3D
+  const sideOffset = new THREE.Vector3(
+    (Math.random() - 0.5) * 2,
+    (i === 0 ? 2 : i === 2 ? -2 : 0.5),
+    (Math.random() - 0.5) * 4
+  );
+  const finalSoapPos = new THREE.Vector3().copy(departVec).add(sideOffset);
+
+  // Tumble rotation
+  const soapRotEnd = new THREE.Euler(
+    (Math.random() - 0.5) * 0.6,
+    (Math.random() - 0.5) * 0.6,
+    (Math.random() - 0.5) * 0.4
+  );
+
+  // Move Na so it tracks the carboxylate
+  const naFinalPos = ohO.parent === soapGroup
+    ? null  // we'll compute relative
+    : null;
+  // We want Na to end up at the COO- "midpoint" + offset
+  // After the chain moves, Na should hover near the carboxylate group; we'll handle that in Phase D (pairing).
+  // For now in C, Na trails along but stays in scene; bring it closer to the carboxylate.
+  const naTrailEnd = ohO.position.clone(); // approximate; will refine
+  const naAtkPos = naAtom.position.clone();
+
+  await tween({
+    duration: T.DEPART,
+    easing: easings.easeOut,
+    onUpdate: u => {
+      soapGroup.position.lerpVectors(new THREE.Vector3(0,0,0), finalSoapPos, u);
+      soapGroup.rotation.x = soapRotEnd.x * u * 0.3;
+      soapGroup.rotation.y = soapRotEnd.y * u * 0.3;
+      soapGroup.rotation.z = soapRotEnd.z * u * 0.3;
+      newCOObond.update();
+      // Na trails — interpolate to a point near the carboxylate (in world)
+      const cooWorld = new THREE.Vector3();
+      ohO.getWorldPosition(cooWorld);
+      naAtom.position.lerpVectors(naAtkPos, cooWorld.clone().add(new THREE.Vector3(1.5, 1.0, 0)), u);
+    }
+  });
+
+  // --- PHASE D: Pairing — Na⁺ bonds with carboxylate ---
+  setStep(
+    `${i + 1}D`,
+    `Na⁺ 配對成肥皂分子`,
+    `鹼性水解（皂化）`,
+    `<strong>Na<sup>+</sup></strong> 移到羧酸根旁，與 <strong>–COO<sup>–</sup></strong> 形成離子鍵，誕生一個 <strong>月桂酸鈉 (C<sub>11</sub>H<sub>23</sub>COONa)</strong> — 完整的肥皂分子！`
+  );
+
+  // Place Na+ at a position adjacent to the carboxylate carbonyl C (within the soap molecule's frame)
+  // Get the COO group's world center
+  const cooCenter = new THREE.Vector3();
+  const cooW = new THREE.Vector3();
+  const oW = new THREE.Vector3();
+  linkage.carbonylO.getWorldPosition(cooW);
+  ohO.getWorldPosition(oW);
+  cooCenter.addVectors(cooW, oW).multiplyScalar(0.5);
+
+  // We want Na to end up bridging the two O's — sit on the opposite side of the C
+  const carbonylWorld_now = new THREE.Vector3();
+  linkage.carbonylC.getWorldPosition(carbonylWorld_now);
+  const cToCooCenterDir = cooCenter.clone().sub(carbonylWorld_now).normalize();
+  const naFinalWorld = cooCenter.clone().add(cToCooCenterDir.clone().multiplyScalar(L_NaO * 0.8));
+
+  // Add Na to soapGroup so it travels with the molecule going forward
+  // (attach() handles reparenting & preserves world transform automatically)
+  soapGroup.attach(naAtom);
+
+  // Create Na...COO ionic bonds (visual: two faint cylinders to each O)
+  const naBond1 = makeTrackedBond(() => naAtom.position, () => linkage.carbonylO.position, { material: polarBondMaterial });
+  naBond1.material.opacity = 0;
+  naBond1.material.transparent = true;
+  const naBond2 = makeTrackedBond(() => naAtom.position, () => ohO.position, { material: polarBondMaterial });
+  naBond2.material.opacity = 0;
+  naBond2.material.transparent = true;
+  soapGroup.add(naBond1, naBond2);
+
+  // Target for Na in soapGroup-local: we need the world target = naFinalWorld; convert.
+  const naLocalTarget = naFinalWorld.clone();
+  soapGroup.worldToLocal(naLocalTarget);
+  const naLocalStart = naAtom.position.clone();
+
+  spawnFlash(naFinalWorld, 0xc9a2ff, 4, 600);
+  spawnParticleBurst(naFinalWorld, 16, 0xc9a2ff, 0.8);
+
+  await tween({
+    duration: T.PAIR,
+    easing: easings.easeOut,
+    onUpdate: u => {
+      naAtom.position.lerpVectors(naLocalStart, naLocalTarget, u);
+      naBond1.material.opacity = 0.6 * u;
+      naBond2.material.opacity = 0.6 * u;
+      naBond1.update();
+      naBond2.update();
+    }
+  });
+
+  // Mark cleaved
+  linkage.cleaved = true;
+  state.cleavedCount++;
+  state.soapCount++;
+  updateProgress();
+
+  soapMolecules.push({
+    group: soapGroup,
+    finalPos: finalSoapPos.clone(),
+    branchIdx: i,
+  });
+
+  // Settle pause
+  await tween({ duration: T.SETTLE, onUpdate: () => {} });
+}
+
+// Final phase: glycerol is now "liberated" with 3 OH groups; arrange products in display formation
+async function finalize() {
+  setStep(
+    'DONE',
+    `皂化完成！`,
+    `鹼性水解（皂化）`,
+    `三條酯鍵都已水解。生成：1 個 <em>甘油</em> (C<sub>3</sub>H<sub>5</sub>(OH)<sub>3</sub>) ＋ 3 個 <em>月桂酸鈉</em> (C<sub>11</sub>H<sub>23</sub>COONa)。 肥皂分子有<strong>親水頭</strong> (–COO<sup>–</sup>Na<sup>+</sup>) 與<strong>疏水尾</strong> (長碳鏈)，這就是為什麼能洗去油污。`
+  );
+
+  state.glycerolReleased = 1;
+  updateProgress();
+
+  // Final formation: glycerol stays centered (drifts down a bit), 3 soaps spread out evenly
+  const glycerolTarget = new THREE.Vector3(-6, 0, 0);
+  const soapTargets = [
+    new THREE.Vector3( 4,  5,  0),
+    new THREE.Vector3( 4,  0,  3),
+    new THREE.Vector3( 4, -5,  0),
+  ];
+
+  const trilaurinStart = trilaurin.position.clone();
+  const soapStarts = soapMolecules.map(s => s.group.position.clone());
+
+  // Zoom out to show everything (chain is long, need distance)
+  tweenCamera({
+    duration: T.FINAL,
+    targetPos: new THREE.Vector3(0, 0, 0),
+    distance: 38,
+    easing: easings.easeInOut,
+  });
+
+  await tween({
+    duration: T.FINAL,
+    easing: easings.easeInOut,
+    onUpdate: u => {
+      trilaurin.position.lerpVectors(trilaurinStart, glycerolTarget, u);
+      soapMolecules.forEach((s, idx) => {
+        s.group.position.lerpVectors(soapStarts[idx], soapTargets[idx], u);
+      });
+    }
+  });
+}
+
+// ============================================================
+//  HIGH-LEVEL CONTROL
+// ============================================================
+const stages = [
+  intro,
+  () => cleaveLinkage(0),
+  () => cleaveLinkage(1),
+  () => cleaveLinkage(2),
+  finalize,
+];
+let stageIdx = 0;
+
+async function runFull() {
+  state.isPlaying = true;
+  state.isAnimating = true;
+  ui.btnPlay.textContent = '⏸ 暫停';
+  ui.btnPlay.classList.remove('primary');
+  while (stageIdx < stages.length && state.isPlaying) {
+    await stages[stageIdx]();
+    stageIdx++;
+  }
+  state.isAnimating = false;
+  if (stageIdx >= stages.length) {
+    state.isPlaying = false;
+    ui.btnPlay.textContent = '✓ 完成';
+    ui.btnPlay.disabled = true;
+  } else {
+    ui.btnPlay.textContent = '▶ 繼續';
+    ui.btnPlay.classList.add('primary');
+  }
+}
+
+async function stepOnce() {
+  if (state.isAnimating) return;
+  if (stageIdx >= stages.length) return;
+  state.isPlaying = true;
+  state.isAnimating = true;
+  await stages[stageIdx]();
+  stageIdx++;
+  state.isAnimating = false;
+  state.isPlaying = false;
+  if (stageIdx >= stages.length) {
+    ui.btnPlay.textContent = '✓ 完成';
+    ui.btnPlay.disabled = true;
+  }
+}
+
+function reset() {
+  clearTweens();
+  state.isPlaying = false;
+  state.isAnimating = false;
+  state.paused = false;
+  state.cleavedCount = 0;
+  state.soapCount = 0;
+  state.glycerolReleased = 0;
+  stageIdx = 0;
+
+  // Remove everything dynamic
+  const toRemove = [];
+  scene.traverse(o => {
+    if (o === scene || o === camera) return;
+    if (o.userData.kind === 'trilaurin' || o.userData.kind === 'naoh' ||
+        o.userData.kind === 'soap' || o.userData.kind === 'chain') {
+      toRemove.push(o);
+    }
+    // Also free atoms/bonds that may have been detached to scene root during animation
+    if (o.parent === scene && (o.userData.isAtom || o.userData.isBond)) {
+      toRemove.push(o);
+    }
+  });
+  toRemove.forEach(o => {
+    scene.remove(o);
+    // Only dispose materials (which are cloned per-mesh).
+    // Geometries are SHARED global singletons (atomGeoms, bondGeom, etc.) — never dispose those.
+    o.traverse?.(child => {
+      child.material?.dispose?.();
+    });
+    o.material?.dispose?.();
+  });
+  naohMolecules.length = 0;
+  soapMolecules.length = 0;
+
+  // Rebuild
+  trilaurin = makeTrilaurin(new THREE.Vector3(-2, 0, 0));
+  scene.add(trilaurin);
+  spawnNaOHs();
+
+  // Reset camera
+  controls.target.set(0, 0, 0);
+  camera.position.set(0, 5, 22);
+
+  ui.btnPlay.textContent = '▶ 播放';
+  ui.btnPlay.classList.add('primary');
+  ui.btnPlay.disabled = false;
+  setStep(
+    '0',
+    '準備就緒',
+    '鹼性水解（皂化）',
+    `點選「播放」開始。<strong>椰子油</strong>的三月桂酸甘油酯與 <strong>氫氧化鈉</strong> 反應，三條酯鍵會被逐一斷裂，產生<em>甘油</em>與三個<em>月桂酸鈉</em>（肥皂）。`
+  );
+  updateProgress();
+}
+
+// Helper kept for compatibility (not strictly needed now)
+function getTrilaurin() { return trilaurin; }
+
+// ============================================================
+//  EVENT HANDLERS
+// ============================================================
+ui.btnPlay.addEventListener('click', () => {
+  if (stageIdx >= stages.length) return;
+  if (state.isAnimating) {
+    state.paused = !state.paused;
+    ui.btnPlay.textContent = state.paused ? '▶ 繼續' : '⏸ 暫停';
+    if (state.paused) ui.btnPlay.classList.add('primary');
+    else ui.btnPlay.classList.remove('primary');
+  } else {
+    state.paused = false;
+    runFull();
+  }
+});
+ui.btnStep.addEventListener('click', stepOnce);
+ui.btnReset.addEventListener('click', reset);
+ui.btnZoomIn.addEventListener('click', () => zoomCamera(0.75));
+ui.btnZoomOut.addEventListener('click', () => zoomCamera(1.33));
+
+ui.speedSli.addEventListener('input', e => {
+  state.speed = parseFloat(e.target.value);
+  ui.speedVal.textContent = state.speed.toFixed(1) + '×';
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '+' || e.key === '=') { zoomCamera(0.75); e.preventDefault(); }
+  else if (e.key === '-' || e.key === '_') { zoomCamera(1.33); e.preventDefault(); }
+  else if (e.key === ' ') { ui.btnPlay.click(); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { ui.btnStep.click(); e.preventDefault(); }
+  else if (e.key === 'r' || e.key === 'R') { ui.btnReset.click(); }
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+//  RENDER LOOP
+// ============================================================
+let lastTime = performance.now();
+function loop(now) {
+  const dt = now - lastTime;
+  lastTime = now;
+  updateTweens(dt);
+  controls.update();
+
+  // Update all tracked bonds in the scene every frame so they follow moving atoms
+  scene.traverse(o => {
+    if (o.update && o.userData.isBond) o.update();
+  });
+
+  // Gentle bob for idle NaOHs (those not yet used)
+  const t = now * 0.0008;
+  naohMolecules.forEach(naoh => {
+    if (naoh.userData.used) return;
+    const p = naoh.userData.initialPos;
+    const ph = naoh.userData.bobPhase;
+    naoh.position.y = p.y + Math.sin(t * 1.5 + ph) * 0.25;
+    naoh.position.x = p.x + Math.cos(t * 0.8 + ph) * 0.15;
+    naoh.rotation.y += 0.003;
+    naoh.rotation.x += 0.001;
+  });
+
+  // Gentle rotation for trilaurin while idle (only before first cleavage)
+  if (state.cleavedCount === 0 && !state.isAnimating) {
+    trilaurin.rotation.y += 0.002;
+  }
+
+  // Gentle bobbing for soap molecules
+  soapMolecules.forEach((s, i) => {
+    if (state.isAnimating) return;
+    s.group.position.y = s.finalPos.y + Math.sin(t * 1.2 + i * 0.5) * 0.15;
+    s.group.rotation.y += 0.0015;
+  });
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+// Initialize step text
+setStep(
+  '0',
+  '準備就緒',
+  '鹼性水解（皂化）',
+  `點選「播放」開始。<strong>椰子油</strong>的三月桂酸甘油酯與 <strong>氫氧化鈉</strong> 反應，三條酯鍵會被逐一斷裂，產生<em>甘油</em>與三個<em>月桂酸鈉</em>（肥皂）。`
+);
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

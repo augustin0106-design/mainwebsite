@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>斜面摩擦力模擬・力的分解與摩擦係數</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --navy-0:#050a1c; --navy-1:#0a1430; --navy-2:#101e44;
+    --glass:rgba(14,28,60,0.58); --glass-line:rgba(94,234,212,0.16);
+    --ink:#e8eefc; --ink-dim:#93a4c8; --ink-faint:#5e7099;
+    --amber:#f5b942; --teal:#2dd4bf; --coral:#fb7185;
+    --violet:#a78bfa; --sky:#5fa8ff;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:var(--navy-0);
+    font-family:'Noto Sans TC',system-ui,sans-serif;color:var(--ink);}
+  #app{position:fixed;inset:0;display:flex;}
+  #stage{position:relative;flex:1;min-width:0;}
+  canvas{display:block;touch-action:none;}
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .flabel{position:absolute;transform:translate(-50%,-50%);
+    font-family:var(--mono);font-size:12.5px;font-weight:600;
+    padding:2px 7px;border-radius:6px;white-space:nowrap;
+    background:rgba(6,12,28,0.74);border:1px solid rgba(255,255,255,0.07);
+    backdrop-filter:blur(3px);line-height:1.25;transition:opacity .15s;}
+  .flabel small{font-size:10px;opacity:.8;font-weight:400;}
+
+  /* header */
+  #brand{position:absolute;top:14px;left:16px;z-index:6;pointer-events:none;}
+  #brand h1{font-size:15px;font-weight:700;letter-spacing:.04em;
+    display:flex;align-items:center;gap:8px;}
+  #brand .tick{width:9px;height:9px;border-radius:2px;background:var(--amber);
+    box-shadow:0 0 12px var(--amber);}
+  #brand p{font-size:11px;color:var(--ink-faint);margin-top:3px;letter-spacing:.18em;
+    font-family:var(--mono);text-transform:uppercase;}
+
+  /* state chip */
+  #statechip{position:absolute;top:14px;right:16px;z-index:6;
+    font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.05em;
+    padding:6px 12px;border-radius:999px;display:flex;align-items:center;gap:7px;
+    background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(8px);}
+  #statechip .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);
+    box-shadow:0 0 10px var(--teal);transition:.2s;}
+  #statechip.sliding .dot{background:var(--coral);box-shadow:0 0 10px var(--coral);}
+
+  /* hint */
+  #hint{position:absolute;bottom:12px;left:16px;z-index:5;font-size:11px;
+    color:var(--ink-faint);font-family:var(--mono);letter-spacing:.04em;pointer-events:none;}
+
+  /* control panel */
+  #panel{width:312px;flex:none;height:100%;overflow-y:auto;
+    background:linear-gradient(180deg,var(--navy-1),var(--navy-0));
+    border-left:1px solid var(--glass-line);padding:18px 16px 28px;
+    display:flex;flex-direction:column;gap:14px;}
+  #panel::-webkit-scrollbar{width:6px;}
+  #panel::-webkit-scrollbar-thumb{background:rgba(94,234,212,0.22);border-radius:3px;}
+
+  .card{background:var(--glass);border:1px solid var(--glass-line);
+    border-radius:14px;padding:13px 14px;backdrop-filter:blur(6px);}
+  .card h2{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--ink-dim);
+    text-transform:uppercase;font-family:var(--mono);margin-bottom:11px;
+    display:flex;align-items:center;gap:7px;}
+  .card h2::before{content:"";width:14px;height:2px;background:var(--amber);border-radius:2px;}
+
+  /* angle slider */
+  .angle-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
+  .angle-val{font-family:var(--mono);font-size:30px;font-weight:600;color:var(--amber);
+    line-height:1;font-variant-numeric:tabular-nums;}
+  .angle-val span{font-size:15px;color:var(--ink-dim);margin-left:1px;}
+  .angle-tan{font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:right;}
+  .angle-tan b{color:var(--teal);font-weight:600;}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;
+    border-radius:3px;background:rgba(255,255,255,0.12);outline:none;margin:6px 0 2px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;
+    border-radius:50%;background:var(--amber);cursor:pointer;
+    box-shadow:0 0 0 4px rgba(245,185,66,0.18),0 2px 6px rgba(0,0,0,.4);}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;
+    background:var(--amber);cursor:pointer;box-shadow:0 0 0 4px rgba(245,185,66,0.18);}
+  .ticks{display:flex;justify-content:space-between;font-family:var(--mono);
+    font-size:9.5px;color:var(--ink-faint);margin-top:2px;}
+
+  /* materials */
+  .mats{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  .mat{border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.025);
+    border-radius:10px;padding:8px 9px;cursor:pointer;transition:.15s;text-align:left;}
+  .mat:hover{border-color:rgba(94,234,212,0.4);}
+  .mat.on{border-color:var(--teal);background:rgba(45,212,191,0.1);
+    box-shadow:0 0 0 1px var(--teal) inset;}
+  .mat .mn{font-size:12.5px;font-weight:500;}
+  .mat .mc{font-family:var(--mono);font-size:10px;color:var(--ink-faint);margin-top:3px;}
+  .mat.on .mc{color:var(--teal);}
+
+  /* segmented */
+  .seg{display:flex;background:rgba(255,255,255,0.05);border-radius:9px;padding:3px;gap:3px;}
+  .seg button{flex:1;border:none;background:none;color:var(--ink-dim);cursor:pointer;
+    font-family:'Noto Sans TC';font-size:12px;font-weight:500;padding:7px 4px;border-radius:7px;transition:.15s;}
+  .seg button.on{background:var(--teal);color:#04221d;font-weight:700;}
+
+  /* toggles */
+  .tog{display:flex;align-items:center;justify-content:space-between;padding:7px 0;
+    border-bottom:1px solid rgba(255,255,255,0.05);}
+  .tog:last-child{border-bottom:none;}
+  .tog .lbl{display:flex;align-items:center;gap:9px;font-size:13px;}
+  .tog .swatch{width:11px;height:11px;border-radius:3px;flex:none;}
+  .switch{position:relative;width:38px;height:21px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .track{position:absolute;inset:0;background:rgba(255,255,255,0.14);border-radius:999px;
+    transition:.18s;cursor:pointer;}
+  .track::before{content:"";position:absolute;width:15px;height:15px;left:3px;top:3px;
+    background:#fff;border-radius:50%;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .switch input:checked + .track{background:var(--teal);}
+  .switch input:checked + .track::before{transform:translateX(17px);}
+
+  /* readout */
+  .ro{display:flex;justify-content:space-between;align-items:baseline;
+    font-family:var(--mono);font-size:12.5px;padding:5px 0;
+    border-bottom:1px solid rgba(255,255,255,0.05);}
+  .ro:last-child{border-bottom:none;}
+  .ro .k{color:var(--ink-dim);font-size:11.5px;}
+  .ro .v{font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.02em;}
+  .ro.hide{display:none;}
+  .ro .expr{color:var(--ink-faint);font-size:10.5px;font-weight:400;}
+
+  /* meter */
+  #meter .bar{position:relative;height:30px;border-radius:8px;margin-top:4px;
+    background:linear-gradient(90deg,rgba(45,212,191,0.14),rgba(251,113,133,0.14));
+    border:1px solid rgba(255,255,255,0.08);overflow:hidden;}
+  #meter .fill{position:absolute;left:0;top:0;bottom:0;width:0%;
+    background:linear-gradient(90deg,rgba(95,168,255,0.35),rgba(245,185,66,0.45));transition:width .08s;}
+  #meter .mu{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--coral);
+    box-shadow:0 0 8px var(--coral);}
+  #meter .mu::after{content:"μ\2009s";position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:9.5px;color:var(--coral);}
+  #meter .now{position:absolute;top:50%;transform:translate(-50%,-50%);font-family:var(--mono);
+    font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 4px #000;transition:left .08s;}
+  #meter .cap{display:flex;justify-content:space-between;font-family:var(--mono);
+    font-size:9.5px;color:var(--ink-faint);margin-top:11px;}
+  #meter .verdict{font-size:11px;font-family:var(--mono);text-align:center;margin-top:8px;
+    color:var(--ink-dim);letter-spacing:.03em;}
+  #meter .verdict.crit{color:var(--amber);font-weight:700;}
+
+  .btn{width:100%;border:1px solid var(--glass-line);background:rgba(245,185,66,0.1);
+    color:var(--amber);font-family:'Noto Sans TC';font-size:13px;font-weight:600;
+    padding:11px;border-radius:11px;cursor:pointer;transition:.15s;letter-spacing:.04em;}
+  .btn:hover{background:rgba(245,185,66,0.18);}
+  .btn:active{transform:translateY(1px);}
+
+  .op-lbl{font-size:12.5px;color:var(--ink-dim);display:flex;justify-content:space-between;align-items:baseline;}
+  .op-lbl span{font-family:var(--mono);font-size:12px;color:var(--teal);font-weight:600;}
+
+  /* mobile */
+  #handle{display:none;}
+  @media (max-width:820px){
+    #app{flex-direction:column;}
+    #stage{flex:1 1 auto;min-height:0;}
+    #panel{width:100%;height:46vh;border-left:none;border-top:1px solid var(--glass-line);
+      border-radius:18px 18px 0 0;}
+    #handle{display:block;width:42px;height:4px;border-radius:3px;background:rgba(255,255,255,0.2);
+      margin:0 auto 12px;flex:none;}
+    #brand p{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="brand"><h1><span class="tick"></span>斜面摩擦力・力的分解實驗台</h1>
+      <p>Inclined Plane · μ = tan θ꜀</p></div>
+    <div id="statechip"><span class="dot"></span><span id="statetext">靜止</span></div>
+    <div id="labels"></div>
+    <div id="hint">拖曳旋轉視角　·　滾輪／雙指縮放</div>
+  </div>
+
+  <div id="panel">
+    <div id="handle"></div>
+
+    <div class="card">
+      <h2>斜面角度 θ</h2>
+      <div class="angle-row">
+        <div class="angle-val"><span id="angleNum">15</span><span>°</span></div>
+        <div class="angle-tan" id="tanRow">tan θ = <b id="tanVal">0.27</b></div>
+      </div>
+      <input type="range" id="angle" min="0" max="50" step="0.5" value="15">
+      <div class="ticks"><span>0°</span><span>臨界角 θ꜀</span><span>50°</span></div>
+    </div>
+
+    <div class="card">
+      <h2>接觸材質 → 摩擦係數</h2>
+      <div class="mats" id="mats"></div>
+    </div>
+
+    <div class="card" id="meter">
+      <h2>臨界角偵測器</h2>
+      <div class="bar"><div class="fill" id="mFill"></div><div class="mu" id="mMu"></div>
+        <div class="now" id="mNow">0.27</div></div>
+      <div class="cap"><span>tan θ = 0</span><span id="mMax">1.20</span></div>
+      <div class="verdict" id="verdict">tan θ &lt; μs　木塊靜止</div>
+    </div>
+
+    <div class="card">
+      <h2>顯示分力</h2>
+      <div class="tog"><div class="lbl"><span class="swatch" style="background:var(--violet)"></span>平行斜面分力 W·sin θ</div>
+        <label class="switch"><input type="checkbox" id="t_par" checked><span class="track"></span></label></div>
+      <div class="tog"><div class="lbl"><span class="swatch" style="background:var(--sky)"></span>垂直斜面分力 W·cos θ</div>
+        <label class="switch"><input type="checkbox" id="t_perp" checked><span class="track"></span></label></div>
+      <div style="margin-top:10px">
+        <div style="font-size:11px;color:var(--ink-dim);margin-bottom:6px">分力標示方式</div>
+        <div class="seg" id="segMode">
+          <button data-m="num" class="on">單純數值</button>
+          <button data-m="formula">W × 三角函數</button>
+        </div>
+      </div>
+      <div class="tog" style="margin-top:8px"><div class="lbl"><span class="swatch" style="background:#aebfe0"></span>分力輔助線（虛線）</div>
+        <label class="switch"><input type="checkbox" id="t_guide" checked><span class="track"></span></label></div>
+    </div>
+
+    <div class="card">
+      <h2>顯示其他力</h2>
+      <div class="tog"><div class="lbl"><span class="swatch" style="background:var(--amber)"></span>重力 W</div>
+        <label class="switch"><input type="checkbox" id="t_w" checked><span class="track"></span></label></div>
+      <div class="tog"><div class="lbl"><span class="swatch" style="background:var(--teal)"></span>正向力 N</div>
+        <label class="switch"><input type="checkbox" id="t_n" checked><span class="track"></span></label></div>
+      <div class="tog"><div class="lbl"><span class="swatch" style="background:var(--coral)"></span>摩擦力 f</div>
+        <label class="switch"><input type="checkbox" id="t_f" checked><span class="track"></span></label></div>
+    </div>
+
+    <div class="card">
+      <h2>透明度</h2>
+      <div class="op-lbl">斜面<span id="opInc">100%</span></div>
+      <input type="range" id="incOp" min="8" max="100" step="1" value="100">
+      <div class="op-lbl" style="margin-top:8px">木塊<span id="opBlk">100%</span></div>
+      <input type="range" id="blkOp" min="8" max="100" step="1" value="100">
+    </div>
+
+    <div class="card">
+      <h2>數值面板</h2>
+      <div class="tog"><div class="lbl">顯示力的大小（kgw）</div>
+        <label class="switch"><input type="checkbox" id="t_mag" checked><span class="track"></span></label></div>
+      <div class="tog"><div class="lbl">顯示力的標籤（W、N、f…）</div>
+        <label class="switch"><input type="checkbox" id="t_label" checked><span class="track"></span></label></div>
+      <div class="tog"><div class="lbl">顯示摩擦係數 μ</div>
+        <label class="switch"><input type="checkbox" id="t_mu" checked><span class="track"></span></label></div>
+      <div class="tog"><div class="lbl">顯示 tan θ</div>
+        <label class="switch"><input type="checkbox" id="t_tan" checked><span class="track"></span></label></div>
+    </div>
+
+    <div class="card" id="data">
+      <h2>即時數據</h2>
+      <div class="ro" id="ro_tan"><span class="k">tan θ</span><span class="v" id="d_tan">—</span></div>
+      <div class="ro" id="ro_mus"><span class="k">μs（靜摩擦係數）</span><span class="v" id="d_mus">—</span></div>
+      <div class="ro" id="ro_muk"><span class="k">μk（動摩擦係數）</span><span class="v" id="d_muk">—</span></div>
+      <div class="ro"><span class="k">臨界角 θ꜀ = tan⁻¹μs</span><span class="v" id="d_crit">—</span></div>
+      <div class="ro"><span class="k">W·sin θ <span class="expr" id="e_par"></span></span><span class="v" style="color:var(--violet)" id="d_par">—</span></div>
+      <div class="ro"><span class="k">W·cos θ <span class="expr" id="e_perp"></span></span><span class="v" style="color:var(--sky)" id="d_perp">—</span></div>
+      <div class="ro"><span class="k">正向力 N</span><span class="v" style="color:var(--teal)" id="d_n">—</span></div>
+      <div class="ro"><span class="k">摩擦力 f</span><span class="v" style="color:var(--coral)" id="d_f">—</span></div>
+      <div class="ro" id="ro_a"><span class="k">沿斜面加速度 a</span><span class="v" style="color:var(--amber)" id="d_a">—</span></div>
+    </div>
+
+    <button class="btn" id="reset">⟲ 木塊歸位到斜面頂端</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============ 物理常數與材質 ============ */
+const G = 9.8;                 // m/s^2，用於顯示真實加速度
+const MASS = 1.0;              // kg → 重量 = 1.00 kgw
+const W = MASS;               // 以 kgw 為單位，W 數值 = 質量
+const MATERIALS = [
+  {id:'wood',  name:'木塊／木板', mus:0.50, muk:0.35},
+  {id:'rubber',name:'橡膠／木板', mus:0.90, muk:0.70},
+  {id:'metal', name:'金屬／金屬', mus:0.35, muk:0.25},
+  {id:'ice',   name:'冰／冰',     mus:0.12, muk:0.05},
+];
+let mat = MATERIALS[0];
+
+/* ============ 場景幾何參數 ============ */
+const BASE = 6.0;      // 斜面水平底長（世界單位）
+const HD = 1.5;        // 斜面半深度（z）
+const BW = 1.25, BH = 0.78, BD = 1.5;  // 木塊：沿斜面長 / 厚 / 深
+const LEN_SCALE = 2.4; // 1 kgw → 世界長度
+const ACCEL_VIS = 2.4; // 動畫加速度縮放（視覺用）
+
+/* ============ 狀態 ============ */
+let angleDeg = 15;
+let frac = 0.74;        // 木塊沿斜面位置（佔斜邊比例）
+let vel = 0;            // 沿斜面速度（世界單位/秒，下坡為正）
+let sliding = false;
+let compMode = 'num';   // 'num' | 'formula'
+const show = {par:true,perp:true,w:true,n:true,f:true,mag:true,mu:true,tan:true,guide:true,label:true};
+
+/* ============ Three.js 基礎 ============ */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050a1c, 0.018);
+const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 400);
+
+// 燈光
+scene.add(new THREE.AmbientLight(0x9fb4e0, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 0.95); key.position.set(8,14,10); scene.add(key);
+const fill = new THREE.DirectionalLight(0x5fa8ff, 0.4); fill.position.set(-9,5,-6); scene.add(fill);
+const rim = new THREE.DirectionalLight(0x2dd4bf, 0.35); rim.position.set(0,3,-12); scene.add(rim);
+
+// 地面網格
+const grid = new THREE.GridHelper(60, 60, 0x1c2c52, 0x142244);
+grid.material.transparent = true; grid.material.opacity = 0.5; grid.position.y = -0.001; scene.add(grid);
+
+const clamp=(v,a,b)=>Math.min(Math.max(v,a),b);
+const f2=x=>x.toFixed(2);
+const $=id=>document.getElementById(id);
+const vU=th=>new THREE.Vector3(Math.cos(th),Math.sin(th),0);   // 沿斜面向上單位向量
+const vN=th=>new THREE.Vector3(-Math.sin(th),Math.cos(th),0);  // 斜面外法線單位向量
+
+/* ============ 相機（自製軌道控制） ============ */
+let target=new THREE.Vector3(), camR=15, camAz=0.72, camPol=1.0;
+function updateCam(){
+  camera.position.set(
+    target.x+camR*Math.sin(camPol)*Math.sin(camAz),
+    target.y+camR*Math.cos(camPol),
+    target.z+camR*Math.sin(camPol)*Math.cos(camAz));
+  camera.lookAt(target);
+}
+function frameCamera(){
+  const by=BASE*Math.tan(angleDeg*Math.PI/180);
+  target.set(BASE*0.40, Math.max(by*0.32,0.4)+0.25, 0);
+  updateCam();
+}
+
+/* ============ 斜面（三角柱）幾何 ============ */
+const inclineMat=new THREE.MeshStandardMaterial({color:0x1b2c54,metalness:0.12,roughness:0.82,
+  emissive:0x0a1430,emissiveIntensity:0.45,side:THREE.DoubleSide,flatShading:true});
+let inclineMesh=null, inclineEdges=null, arcLine=null;
+function buildPrismGeom(th){
+  const bx=BASE, by=BASE*Math.tan(th);
+  const A=[0,0,HD],B=[bx,0,HD],C=[bx,by,HD];
+  const Ab=[0,0,-HD],Bb=[bx,0,-HD],Cb=[bx,by,-HD];
+  const t=[]; const push=(p,q,r)=>t.push(...p,...q,...r);
+  push(A,B,C);            // 前 +z
+  push(Ab,Cb,Bb);         // 後 -z
+  push(A,Bb,B); push(A,Ab,Bb);   // 底 -y
+  push(B,Cb,C); push(B,Bb,Cb);   // 直立背 +x
+  push(A,C,Cb); push(A,Cb,Ab);   // 斜面 (外法線 n)
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(t,3));
+  g.computeVertexNormals();
+  return g;
+}
+function rebuildIncline(){
+  const th=angleDeg*Math.PI/180;
+  const g=buildPrismGeom(th);
+  if(inclineMesh){scene.remove(inclineMesh);inclineMesh.geometry.dispose();}
+  inclineMesh=new THREE.Mesh(g,inclineMat); scene.add(inclineMesh);
+  if(inclineEdges){scene.remove(inclineEdges);inclineEdges.geometry.dispose();inclineEdges.material.dispose();}
+  inclineEdges=new THREE.LineSegments(new THREE.EdgesGeometry(g,18),
+    new THREE.LineBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.3}));
+  scene.add(inclineEdges);
+  if(arcLine){scene.remove(arcLine);arcLine.geometry.dispose();arcLine.material.dispose();}
+  const rA=1.5, pts=[]; for(let i=0;i<=48;i++){const a=th*i/48;pts.push(new THREE.Vector3(rA*Math.cos(a),rA*Math.sin(a),HD+0.02));}
+  arcLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:0xf5b942,transparent:true,opacity:0.9}));
+  scene.add(arcLine);
+}
+// 水平參考線（固定）
+const baseLine=new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,HD+0.02),new THREE.Vector3(BASE+0.7,0,HD+0.02)]),
+  new THREE.LineDashedMaterial({color:0x8aa0cc,dashSize:0.22,gapSize:0.16,transparent:true,opacity:0.55}));
+baseLine.computeLineDistances(); scene.add(baseLine);
+
+/* ============ 木塊 ============ */
+const BLOCKCOL={wood:0xb98a5a,rubber:0x44495a,metal:0x9fb0c8,ice:0xbfe3f5};
+const blockGeom=new THREE.BoxGeometry(BW,BH,BD);
+const blockMat=new THREE.MeshStandardMaterial({color:BLOCKCOL.wood,metalness:0.25,roughness:0.55});
+const block=new THREE.Mesh(blockGeom,blockMat); scene.add(block);
+block.add(new THREE.LineSegments(new THREE.EdgesGeometry(blockGeom),
+  new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.28})));
+function placeBlock(){
+  const th=angleDeg*Math.PI/180;
+  const slopeLen=BASE/Math.cos(th);
+  const sMin=BW/2+0.04, sMax=slopeLen-BW/2-0.04;
+  let s=clamp(frac*slopeLen,sMin,Math.max(sMin,sMax));
+  frac=s/slopeLen;
+  const u=vU(th), n=vN(th);
+  block.position.copy(u.multiplyScalar(s).add(n.multiplyScalar(BH/2+0.02)));
+  block.rotation.z=th;
+}
+
+/* ============ 力向量箭頭（實體圓柱＋錐頭，可加粗） ============ */
+const YUP=new THREE.Vector3(0,1,0);
+function mkArrow(c){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({color:c,metalness:0.3,roughness:0.38,emissive:c,emissiveIntensity:0.2});
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,16),mat);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(1,1,24),mat);
+  g.add(shaft,head); g.userData={shaft,head}; scene.add(g); return g;
+}
+const arrows={w:mkArrow(0xf5b942),par:mkArrow(0xa78bfa),perp:mkArrow(0x5fa8ff),n:mkArrow(0x2dd4bf),f:mkArrow(0xfb7185)};
+function setArrow(a,dir,origin,len,vis){
+  if(!vis||len<0.04){a.visible=false;return;}
+  a.visible=true; a.position.copy(origin);
+  a.quaternion.setFromUnitVectors(YUP,dir.clone().normalize());
+  const hHead=clamp(len*0.32,0.14,0.36), rHead=hHead*0.5, rShaft=clamp(hHead*0.32,0.05,0.07);
+  const shaftLen=Math.max(len-hHead,0.001);
+  const {shaft,head}=a.userData;
+  shaft.scale.set(rShaft,shaftLen,rShaft); shaft.position.set(0,shaftLen/2,0);
+  head.scale.set(rHead,hHead,rHead); head.position.set(0,shaftLen+hHead/2,0);
+}
+
+/* ============ 分力輔助虛線（W = W·sinθ + W·cosθ 的矩形） ============ */
+const guideMat=new THREE.LineDashedMaterial({color:0xaebfe0,transparent:true,opacity:0.7,dashSize:0.17,gapSize:0.12});
+function mkGuide(){const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),guideMat);scene.add(l);return l;}
+const guideA=mkGuide(), guideB=mkGuide();
+function setGuide(l,p1,p2,vis){
+  if(!vis){l.visible=false;return;}
+  l.visible=true;
+  const pos=l.geometry.attributes.position;
+  pos.setXYZ(0,p1.x,p1.y,p1.z); pos.setXYZ(1,p2.x,p2.y,p2.z); pos.needsUpdate=true;
+  l.computeLineDistances();
+}
+
+/* ============ 文字標籤（HTML 投影） ============ */
+const labelBox=$('labels');
+function mkLabel(c){const d=document.createElement('div');d.className='flabel';d.style.color=c;labelBox.appendChild(d);return d;}
+const lab={w:mkLabel('#f5b942'),par:mkLabel('#a78bfa'),perp:mkLabel('#5fa8ff'),n:mkLabel('#2dd4bf'),f:mkLabel('#fb7185'),ang:mkLabel('#f5b942')};
+function setLabel(d,world,text,vis){
+  if(!vis||!text){d.style.opacity='0';return;}
+  const p=world.clone().project(camera);
+  if(p.z>=1){d.style.opacity='0';return;}
+  const rect=renderer.domElement.getBoundingClientRect();
+  d.textContent=text;
+  d.style.left=((p.x*0.5+0.5)*rect.width)+'px';
+  d.style.top=((-p.y*0.5+0.5)*rect.height)+'px';
+  d.style.opacity='1';
+}
+
+/* ============ 主迴圈：物理 + 視覺 ============ */
+let lastT=performance.now();
+function tick(now){
+  const dt=Math.min((now-lastT)/1000,0.04); lastT=now;
+  const th=angleDeg*Math.PI/180, sinT=Math.sin(th), cosT=Math.cos(th), tanT=Math.tan(th);
+
+  // 狀態機：靜摩擦 → 動摩擦
+  if(!sliding && tanT>mat.mus+1e-4){sliding=true;vel=0;}
+  if(sliding){
+    const aVis=ACCEL_VIS*(sinT-mat.muk*cosT);
+    vel+=aVis*dt; if(vel<0)vel=0;
+    const slopeLen=BASE/cosT;
+    let s=frac*slopeLen-vel*dt;
+    const sMin=BW/2+0.04;
+    if(s<=sMin){s=sMin;vel=0;}
+    frac=s/slopeLen;
+    if(vel===0 && tanT<=mat.mus)sliding=false;
+  }
+  placeBlock();
+
+  // 力（單位 kgw，W=1）
+  const Wm=W, parM=W*sinT, perpM=W*cosT, Nm=W*cosT;
+  const fM = sliding ? mat.muk*Nm : Math.min(W*sinT, mat.mus*Nm);
+  const u=vU(th), n=vN(th);
+  const com=block.position.clone();
+  const contact=com.clone().add(n.clone().multiplyScalar(-BH/2));
+  const DOWN=new THREE.Vector3(0,-1,0);
+
+  // 方向／作用點／長度（摩擦力作用點＝質心）
+  const Wd=DOWN,            Wo=com,     Wl=Wm*LEN_SCALE;
+  const Pd=u.clone().negate(), Po=com,  Pl=parM*LEN_SCALE;
+  const Qd=n.clone().negate(), Qo=com,  Ql=perpM*LEN_SCALE;
+  const Nd=n.clone(),      No=contact,  Nl=Nm*LEN_SCALE;
+  const Fd=u.clone(),      Fo=com,      Fl=fM*LEN_SCALE;
+
+  setArrow(arrows.w,Wd,Wo,Wl,show.w);
+  setArrow(arrows.par,Pd,Po,Pl,show.par);
+  setArrow(arrows.perp,Qd,Qo,Ql,show.perp);
+  setArrow(arrows.n,Nd,No,Nl,show.n);
+  setArrow(arrows.f,Fd,Fo,Fl,show.f);
+
+  // 標籤（移到箭頭尖端外側，避免擋住箭頭；可由 show.label 關閉）
+  const GAP=0.34, KG=' kgw';
+  const lpos=(o,d,len)=>o.clone().add(d.clone().normalize().multiplyScalar(len+GAP));
+  setLabel(lab.w, lpos(Wo,Wd,Wl), 'W'+(show.mag?' '+f2(Wm)+KG:''), show.label&&show.w&&Wl>0.04);
+  const parTxt = compMode==='formula' ? ('W·sin θ'+(show.mag?' '+f2(parM):'')) : (show.mag?f2(parM)+KG:'W·sin θ');
+  setLabel(lab.par, lpos(Po,Pd,Pl), parTxt, show.label&&show.par&&Pl>0.04);
+  const perpTxt = compMode==='formula' ? ('W·cos θ'+(show.mag?' '+f2(perpM):'')) : (show.mag?f2(perpM)+KG:'W·cos θ');
+  setLabel(lab.perp, lpos(Qo,Qd,Ql), perpTxt, show.label&&show.perp&&Ql>0.04);
+  setLabel(lab.n, lpos(No,Nd,Nl), 'N'+(show.mag?' '+f2(Nm)+KG:''), show.label&&show.n&&Nl>0.04);
+  setLabel(lab.f, lpos(Fo,Fd,Fl), 'f'+(show.mag?' '+f2(fM)+KG:''), show.label&&show.f&&Fl>0.04);
+  const am=th/2, rA=1.82;
+  setLabel(lab.ang, new THREE.Vector3(rA*Math.cos(am),rA*Math.sin(am),HD+0.02),
+    'θ = '+angleDeg.toFixed(0)+'°', true);
+
+  // 輔助虛線：把兩分力的端點連到重力端點，構成力的矩形
+  const Wtip=com.clone().add(Wd.clone().multiplyScalar(Wl));
+  const Ptip=com.clone().add(Pd.clone().multiplyScalar(Pl));
+  const Qtip=com.clone().add(Qd.clone().multiplyScalar(Ql));
+  const gvis=show.guide&&show.par&&show.perp&&show.w&&Pl>0.04&&Ql>0.04;
+  setGuide(guideA,Ptip,Wtip,gvis);
+  setGuide(guideB,Qtip,Wtip,gvis);
+
+  updateReadout(sinT,cosT,tanT,parM,perpM,Nm,fM);
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+
+function setRow(id,vis){$(id).classList.toggle('hide',!vis);}
+function updateReadout(sinT,cosT,tanT,parM,perpM,Nm,fM){
+  const chip=$('statechip');
+  if(sliding){chip.classList.add('sliding');$('statetext').textContent='滑動中';}
+  else{chip.classList.remove('sliding');$('statetext').textContent='靜止';}
+
+  const MMAX=1.20, pct=clamp(tanT/MMAX,0,1)*100;
+  $('mFill').style.width=pct+'%';
+  const now=$('mNow'); now.style.left=pct+'%'; now.textContent=show.tan?tanT.toFixed(2):'';
+  const mu=$('mMu');
+  if(show.mu){mu.style.display='block';mu.style.left=clamp(mat.mus/MMAX,0,1)*100+'%';}else mu.style.display='none';
+  const v=$('verdict');
+  if(Math.abs(tanT-mat.mus)<0.012){v.textContent='tan θ = μs　臨界角！此時 μ = tan θ';v.classList.add('crit');}
+  else if(tanT>mat.mus){v.textContent='tan θ > μs　木塊滑動';v.classList.remove('crit');}
+  else{v.textContent='tan θ < μs　木塊靜止';v.classList.remove('crit');}
+  $('mMax').textContent=MMAX.toFixed(2);
+
+  $('tanRow').style.visibility=show.tan?'visible':'hidden';
+  setRow('ro_tan',show.tan); setRow('ro_mus',show.mu); setRow('ro_muk',show.mu);
+  $('d_tan').textContent=tanT.toFixed(3);
+  $('d_mus').textContent=mat.mus.toFixed(2);
+  $('d_muk').textContent=mat.muk.toFixed(2);
+  $('d_crit').textContent=(Math.atan(mat.mus)*180/Math.PI).toFixed(1)+'°';
+  $('d_par').textContent=parM.toFixed(3)+' kgw';
+  $('d_perp').textContent=perpM.toFixed(3)+' kgw';
+  $('d_n').textContent=Nm.toFixed(3)+' kgw';
+  $('d_f').textContent=fM.toFixed(3)+' kgw';
+  if(compMode==='formula'){
+    $('e_par').textContent='= W·sin'+angleDeg.toFixed(0)+'°';
+    $('e_perp').textContent='= W·cos'+angleDeg.toFixed(0)+'°';
+  }else{$('e_par').textContent='';$('e_perp').textContent='';}
+  const aReal=G*(sinT-mat.muk*cosT);
+  $('d_a').textContent = sliding ? ((aReal>0?aReal.toFixed(2):'0.00')+' m/s²') : '0（靜止）';
+}
+
+/* ============ 互動控制 ============ */
+$('angle').addEventListener('input',e=>{
+  angleDeg=parseFloat(e.target.value);
+  $('angleNum').textContent=(angleDeg%1)?angleDeg.toFixed(1):angleDeg.toFixed(0);
+  $('tanVal').textContent=Math.tan(angleDeg*Math.PI/180).toFixed(2);
+  rebuildIncline(); frameCamera();
+});
+
+const matsBox=$('mats');
+MATERIALS.forEach((m,i)=>{
+  const b=document.createElement('button');
+  b.className='mat'+(i===0?' on':'');
+  b.innerHTML='<div class="mn">'+m.name+'</div><div class="mc">μs '+m.mus.toFixed(2)+' · μk '+m.muk.toFixed(2)+'</div>';
+  b.addEventListener('click',()=>{
+    mat=m;
+    document.querySelectorAll('#mats .mat').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    blockMat.color.set(BLOCKCOL[m.id]);
+  });
+  matsBox.appendChild(b);
+});
+
+document.querySelectorAll('#segMode button').forEach(b=>b.addEventListener('click',()=>{
+  compMode=b.dataset.m;
+  document.querySelectorAll('#segMode button').forEach(x=>x.classList.toggle('on',x===b));
+}));
+
+const togMap={t_par:'par',t_perp:'perp',t_w:'w',t_n:'n',t_f:'f',t_mag:'mag',t_mu:'mu',t_tan:'tan',t_guide:'guide',t_label:'label'};
+Object.keys(togMap).forEach(id=>$(id).addEventListener('change',e=>{show[togMap[id]]=e.target.checked;}));
+
+$('reset').addEventListener('click',()=>{frac=0.74;vel=0;sliding=false;placeBlock();});
+
+/* ============ 透明度 ============ */
+function setOpacity(m,v){m.opacity=v;m.transparent=v<0.99;m.depthWrite=v>=0.99;m.needsUpdate=true;}
+$('incOp').addEventListener('input',e=>{$('opInc').textContent=e.target.value+'%';setOpacity(inclineMat,+e.target.value/100);});
+$('blkOp').addEventListener('input',e=>{$('opBlk').textContent=e.target.value+'%';setOpacity(blockMat,+e.target.value/100);});
+
+/* ============ 相機手勢 ============ */
+const dom=renderer.domElement, ptrs=new Map(); let pinch=0;
+dom.addEventListener('pointerdown',e=>{dom.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+dom.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;
+  const p=ptrs.get(e.pointerId);
+  if(ptrs.size===1){camAz-=(e.clientX-p.x)*0.005;camPol=clamp(camPol-(e.clientY-p.y)*0.005,0.25,1.45);updateCam();}
+  p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===2){const a=[...ptrs.values()];const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+    if(pinch){camR=clamp(camR*(pinch/d),7,32);updateCam();}pinch=d;}
+});
+function endP(e){ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=0;}
+dom.addEventListener('pointerup',endP);dom.addEventListener('pointercancel',endP);
+dom.addEventListener('wheel',e=>{e.preventDefault();camR=clamp(camR*(1+Math.sign(e.deltaY)*0.08),7,32);updateCam();},{passive:false});
+
+/* ============ 啟動 ============ */
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
+window.addEventListener('resize',resize);
+rebuildIncline(); placeBlock(); frameCamera(); resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

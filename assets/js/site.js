@@ -41,6 +41,7 @@
     categoryList:    $('#category-list'),
     welcomePanel:    $('#welcome-panel'),
     playerPanel:     $('#player-panel'),
+    categoryOrbits:  $('#category-orbits'),
     quickStats:      $('#quick-stats'),
     featuredList:    $('#featured-list'),
     featuredCount:   $('#featured-count'),
@@ -81,7 +82,8 @@
   // ------------------------------------------------------------
   // Category gradient endpoints (matches CSS tokens)
   const CAT_PALETTE = {
-    science:  { from: '#2563eb', to: '#06b6d4' },
+    physics:  { from: '#2563eb', to: '#06b6d4' },
+    chemistry:{ from: '#0f9f8e', to: '#8dbb2f' },
     learning: { from: '#16a34a', to: '#84cc16' },
     emotion:  { from: '#ef476f', to: '#c084fc' },
     other:    { from: '#f59e0b', to: '#fb7185' }
@@ -175,24 +177,24 @@
     const totalTags = new Set(DATA.simulations.flatMap(s => s.tags || [])).size;
     const stats = [
       {
-        label: 'SIMULATIONS', value: total, suffix: '個',
+        label: 'COLLECTION', value: total, suffix: '件',
         icon: 'layout-grid',
-        color: '#3b6dff', accent: 'linear-gradient(90deg, #3b6dff, #06b6d4)'
+        color: '#2563eb', accent: 'linear-gradient(90deg, #2563eb, #06b6d4)'
       },
       {
-        label: 'CATEGORIES', value: totalCats, suffix: '類',
+        label: 'CURATION', value: totalCats, suffix: '類',
         icon: 'shapes',
-        color: '#7b5cff', accent: 'linear-gradient(90deg, #7b5cff, #c64bff)'
+        color: '#0f9f8e', accent: 'linear-gradient(90deg, #0f9f8e, #8dbb2f)'
       },
       {
-        label: 'TAGS', value: totalTags, suffix: '+',
+        label: 'KEYWORDS', value: totalTags, suffix: '+',
         icon: 'tag',
-        color: '#10d68f', accent: 'linear-gradient(90deg, #10d68f, #84cc16)'
+        color: '#334155', accent: 'linear-gradient(90deg, #334155, #64748b)'
       },
       {
-        label: 'STATUS', value: 'Live', suffix: '',
+        label: 'STATUS', value: 'Open', suffix: '',
         icon: 'zap',
-        color: '#f59e0b', accent: 'linear-gradient(90deg, #f59e0b, #ef476f)'
+        color: '#2563eb', accent: 'linear-gradient(90deg, #2563eb, #0ea5e9)'
       }
     ];
     els.quickStats.innerHTML = stats.map(s => `
@@ -203,6 +205,28 @@
         <div class="stat-value">${s.value}<span class="stat-suffix">${s.suffix}</span></div>
       </div>
     `).join('');
+    refreshIcons();
+  }
+
+  function renderCategoryOrbits() {
+    if (!els.categoryOrbits) return;
+    els.categoryOrbits.innerHTML = DATA.categories.map((cat, index) => {
+      const count = DATA.simulations.filter(s => s.category === cat.id).length;
+      const sample = DATA.simulations
+        .filter(s => s.category === cat.id)
+        .slice(0, 3)
+        .map(s => `<span>${escapeHtml(s.title)}</span>`)
+        .join('');
+      return `
+        <button class="category-orbit category-orbit--${index + 1}" data-category-id="${cat.id}" type="button" style="${catStyle(cat.id)}">
+          <span class="category-orbit-index">${String(index + 1).padStart(2, '0')}</span>
+          <span class="category-orbit-icon"><i data-lucide="${cat.icon || 'circle'}"></i></span>
+          <span class="category-orbit-name">${escapeHtml(cat.name)}</span>
+          <span class="category-orbit-count">${count} 件作品</span>
+          <span class="category-orbit-samples">${sample}</span>
+        </button>
+      `;
+    }).join('');
     refreshIcons();
   }
 
@@ -372,6 +396,18 @@
     maybeCloseSidebarMobile();
   });
 
+  document.addEventListener('click', (e) => {
+    const categoryPortal = e.target.closest('[data-category-id]');
+    if (!categoryPortal) return;
+    const cat = categoriesById[categoryPortal.dataset.categoryId];
+    if (!cat || !els.searchInput) return;
+    e.preventDefault();
+    els.searchInput.value = cat.name;
+    renderSidebar(cat.name);
+    setSidebarOpen(true);
+    els.searchInput.focus();
+  });
+
   // ------------------------------------------------------------
   // 12. Top-level buttons
   // ------------------------------------------------------------
@@ -508,6 +544,7 @@
   // ------------------------------------------------------------
   function boot() {
     renderSidebar();
+    renderCategoryOrbits();
     renderStats();
     renderFeatured();
     refreshIcons();
