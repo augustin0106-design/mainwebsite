@@ -12,7 +12,7 @@ https://augustin0106-design.github.io/mainwebsite/
 - `index.html`：也內嵌一份清單資料，讓入口網站即使直接開檔案也能載入
 - `simulations/`：單檔 HTML 模擬程式
 - `admin/`：本地後台工具，不會被部署到 GitHub Pages
-- `tools/`：Codex 或本機可用的上架與報表工具
+- `tools/`：Codex 或本機可用的上架工具
 
 ## 新增模擬
 
@@ -33,19 +33,3 @@ npm run register -- --file path/to/new.html --category science --title "新模�
 ## GitHub Pages
 
 請在 repo 的 Pages 設定中選擇 GitHub Actions。`deploy-pages.yml` 只會部署公開檔案，不會部署 `admin/`。
-
-## 每日流量報告
-
-`daily-traffic-report.yml` 會在台灣時間每天晚上 8 點執行。需要在 GitHub Secrets 設定：
-
-- `GA4_PROPERTY_ID`
-- `GA4_SERVICE_ACCOUNT_JSON`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_FROM`
-
-網站前端的 GA4 Measurement ID 請填在 `assets/js/analytics-config.js`。
-
-GA4 後台需建立事件參數自訂維度 `simulation_title`，每日報告才能依模擬程式分組。
